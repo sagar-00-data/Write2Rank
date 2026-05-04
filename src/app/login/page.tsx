@@ -1,136 +1,196 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogIn, User, Mail, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
+import { Mail, Phone, ArrowRight, Github, Chrome } from 'lucide-react';
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+export default function LoginPage() {
+  const [method, setMethod] = useState<'initial' | 'email' | 'phone'>('initial');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleMockLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate auth
+    setLoading(true);
+    // Simulate API call
     setTimeout(() => {
-      localStorage.setItem('w2r_user', JSON.stringify({ email, name: 'Student' }));
-      router.push('/');
+      // For now, we store a mock session in localStorage
+      localStorage.setItem('w2r_session', JSON.stringify({ id: 'user_123', isNew: true }));
+      router.push('/onboarding');
     }, 1500);
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      backgroundColor: 'var(--bg-primary)',
-      padding: '20px'
-    }}>
-      <div className="animate-fade-in" style={{ width: '100%', maxWidth: '420px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <div style={{ 
-            width: '64px', 
-            height: '64px', 
-            borderRadius: '16px', 
-            backgroundColor: 'var(--accent-color)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            margin: '0 auto 20px auto',
-            boxShadow: '0 10px 30px rgba(0, 122, 255, 0.3)'
-          }}>
-            <ShieldCheck size={32} color="white" />
-          </div>
-          <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px', color: 'var(--text-primary)' }}>Welcome Back</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Sign in to continue to Write2Rank</p>
+    <div className="login-container">
+      <div className="login-card animate-fade-in">
+        <div className="login-header">
+          <div className="login-logo">W2R</div>
+          <h1>Welcome to Write2Rank</h1>
+          <p>The AI evaluator for professional students</p>
         </div>
 
-        <div className="card" style={{ padding: '32px' }}>
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Email Address</label>
-              <input 
-                type="email" 
-                placeholder="name@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '12px 16px', 
-                  borderRadius: '8px', 
-                  border: '1px solid var(--border-color)', 
-                  backgroundColor: 'var(--bg-tertiary)',
-                  color: 'var(--text-primary)',
-                  fontSize: '15px'
-                }} 
-              />
-            </div>
-            
-            <div style={{ marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ fontSize: '14px', fontWeight: 600 }}>Password</label>
-                <Link href="#" style={{ fontSize: '13px', color: 'var(--accent-color)' }}>Forgot password?</Link>
-              </div>
-              <input 
-                type="password" 
-                placeholder="••••••••"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '12px 16px', 
-                  borderRadius: '8px', 
-                  border: '1px solid var(--border-color)', 
-                  backgroundColor: 'var(--bg-tertiary)',
-                  color: 'var(--text-primary)',
-                  fontSize: '15px'
-                }} 
-              />
+        {method === 'initial' && (
+          <div className="login-options">
+            <button className="auth-btn google" onClick={handleMockLogin}>
+              <Chrome size={20} />
+              <span>Continue with Google</span>
+            </button>
+
+            <div className="divider">
+              <span>or continue with</span>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn" 
-              disabled={isLoading}
-              style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
-            >
-              {isLoading ? 'Signing in...' : (
-                <>
-                  <LogIn size={18} style={{ marginRight: '8px' }} />
-                  Sign In
-                </>
-              )}
+            <div className="auth-grid">
+              <button className="auth-btn secondary" onClick={() => setMethod('email')}>
+                <Mail size={20} />
+                <span>Email</span>
+              </button>
+              <button className="auth-btn secondary" onClick={() => setMethod('phone')}>
+                <Phone size={20} />
+                <span>Phone</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(method === 'email' || method === 'phone') && (
+          <form className="otp-form animate-slide-up" onSubmit={handleMockLogin}>
+            <div className="input-group">
+              <label>{method === 'email' ? 'Email Address' : 'Phone Number'}</label>
+              <input 
+                type={method === 'email' ? 'email' : 'tel'} 
+                placeholder={method === 'email' ? 'name@example.com' : '+91 0000000000'}
+                required 
+                autoFocus
+              />
+            </div>
+            <button type="submit" className="btn primary-btn w-full" disabled={loading}>
+              {loading ? 'Sending OTP...' : 'Send OTP'}
+              {!loading && <ArrowRight size={18} />}
+            </button>
+            <button type="button" className="btn-link" onClick={() => setMethod('initial')}>
+              Go back
             </button>
           </form>
+        )}
 
-          <div style={{ margin: '32px 0', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Or continue with</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', padding: '12px' }}>
-              <User size={18} style={{ marginRight: '8px' }} />
-              Github
-            </button>
-            <button className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', padding: '12px' }}>
-              <Mail size={18} style={{ marginRight: '8px' }} />
-              Google
-            </button>
-          </div>
-        </div>
-
-        <p style={{ textAlign: 'center', marginTop: '32px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-          Don't have an account? <Link href="#" style={{ color: 'var(--accent-color)', fontWeight: 600 }}>Create an account</Link>
+        <p className="login-footer">
+          By continuing, you agree to our Terms of Service and Privacy Policy.
         </p>
       </div>
+
+      <style jsx>{`
+        .login-container {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-secondary);
+          padding: 20px;
+        }
+        .login-card {
+          background: white;
+          width: 100%;
+          max-width: 400px;
+          padding: 40px 32px;
+          border-radius: 24px;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+          border: 1px solid var(--border-color);
+        }
+        .login-header {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+        .login-logo {
+          width: 48px;
+          height: 48px;
+          background: var(--accent-color);
+          color: white;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+          font-size: 20px;
+          margin: 0 auto 16px;
+        }
+        h1 { font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+        p { color: var(--text-secondary); font-size: 15px; }
+        
+        .auth-btn {
+          width: 100%;
+          padding: 14px;
+          border-radius: 12px;
+          border: 1px solid var(--border-color);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          background: white;
+          color: var(--text-primary);
+        }
+        .auth-btn:hover { background: var(--bg-tertiary); transform: translateY(-1px); }
+        .auth-btn.google { background: #111; color: white; border: none; margin-bottom: 12px; }
+        .auth-btn.google:hover { background: #000; }
+        
+        .divider {
+          display: flex;
+          align-items: center;
+          text-align: center;
+          margin: 24px 0;
+          color: #cbd5e1;
+          font-size: 13px;
+          font-weight: 500;
+        }
+        .divider::before, .divider::after {
+          content: '';
+          flex: 1;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .divider span { padding: 0 12px; }
+        
+        .auth-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+        .input-group input {
+          width: 100%;
+          padding: 12px 16px;
+          border-radius: 10px;
+          border: 1px solid var(--border-color);
+          font-size: 15px;
+          transition: border-color 0.2s;
+        }
+        .input-group input:focus { outline: none; border-color: var(--accent-color); }
+        
+        .w-full { width: 100%; justify-content: center; padding: 14px; }
+        
+        .btn-link {
+          display: block;
+          margin: 16px auto 0;
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-weight: 500;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .login-footer {
+          margin-top: 32px;
+          text-align: center;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .animate-slide-up {
+          animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

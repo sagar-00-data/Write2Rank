@@ -29,26 +29,36 @@ export default function RootLayout({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  if (!isReady && pathname !== '/login' && pathname !== '/onboarding') {
+    return <html lang="en"><body className={`${inter.variable}`}><div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div></body></html>;
+  }
+
+  const isAuthPage = pathname === '/login' || pathname === '/onboarding';
+
   return (
     <html lang="en">
       <body className={`${inter.variable}`}>
-        <div className={`app-container ${!isSidebarOpen ? 'sidebar-collapsed' : ''}`}>
-          {/* Sidebar Component */}
-          <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-          
-          {/* Mobile Overlay */}
-          <div 
-            className={`sidebar-overlay ${isSidebarOpen ? 'visible' : ''}`} 
-            onClick={() => setIsSidebarOpen(false)}
-          />
+        {isAuthPage ? (
+          children
+        ) : (
+          <div className={`app-container ${!isSidebarOpen ? 'sidebar-collapsed' : ''}`}>
+            {/* Sidebar Component */}
+            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+            
+            {/* Mobile Overlay */}
+            <div 
+              className={`sidebar-overlay ${isSidebarOpen ? 'visible' : ''}`} 
+              onClick={() => setIsSidebarOpen(false)}
+            />
 
-          <main className="main-content">
-            <Topbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-            <div className="page-content-wrapper">
-              {children}
-            </div>
-          </main>
-        </div>
+            <main className="main-content">
+              <Topbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+              <div className="page-content-wrapper">
+                {children}
+              </div>
+            </main>
+          </div>
+        )}
       </body>
     </html>
   );
