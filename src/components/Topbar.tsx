@@ -1,8 +1,12 @@
 'use client';
-import { Bell, Search, User } from 'lucide-react';
+import { Bell, Search, User, Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
-export default function Topbar() {
+interface TopbarProps {
+  toggleSidebar: () => void;
+}
+
+export default function Topbar({ toggleSidebar }: TopbarProps) {
   const pathname = usePathname();
   
   const getBreadcrumb = () => {
@@ -13,13 +17,20 @@ export default function Topbar() {
 
   return (
     <header className="topbar">
+      <button className="menu-toggle" onClick={toggleSidebar}>
+        <Menu size={20} />
+      </button>
+      
       <div className="breadcrumb">
         Workspace / <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{getBreadcrumb()}</span>
       </div>
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: '16px', color: 'var(--text-secondary)' }}>
-        <Search size={20} style={{ cursor: 'pointer' }} />
-        <Bell size={20} style={{ cursor: 'pointer' }} />
-        <User size={20} style={{ cursor: 'pointer' }} />
+      
+      <div className="topbar-actions">
+        <Search size={18} className="action-icon" />
+        <Bell size={18} className="action-icon" />
+        <div className="user-avatar">
+          <User size={16} />
+        </div>
       </div>
     </header>
   );
