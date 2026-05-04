@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Phone, ArrowRight, Github, Chrome } from 'lucide-react';
+import { Mail, Phone, ArrowRight, Github, Globe } from 'lucide-react';
 
 export default function LoginPage() {
   const [method, setMethod] = useState<'initial' | 'email' | 'phone'>('initial');
@@ -31,7 +31,7 @@ export default function LoginPage() {
         {method === 'initial' && (
           <div className="login-options">
             <button className="auth-btn google" onClick={handleMockLogin}>
-              <Chrome size={20} />
+              <Globe size={20} />
               <span>Continue with Google</span>
             </button>
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--bg-secondary);
+          background: #f8fafc;
           padding: 20px;
         }
         .login-card {
@@ -94,7 +94,7 @@ export default function LoginPage() {
           padding: 40px 32px;
           border-radius: 24px;
           box-shadow: 0 10px 40px rgba(0,0,0,0.05);
-          border: 1px solid var(--border-color);
+          border: 1px solid #e2e8f0;
         }
         .login-header {
           text-align: center;
@@ -103,7 +103,7 @@ export default function LoginPage() {
         .login-logo {
           width: 48px;
           height: 48px;
-          background: var(--accent-color);
+          background: #2563eb;
           color: white;
           border-radius: 12px;
           display: flex;
@@ -114,13 +114,13 @@ export default function LoginPage() {
           margin: 0 auto 16px;
         }
         h1 { font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
-        p { color: var(--text-secondary); font-size: 15px; }
+        p { color: #64748b; font-size: 15px; }
         
         .auth-btn {
           width: 100%;
           padding: 14px;
           border-radius: 12px;
-          border: 1px solid var(--border-color);
+          border: 1px solid #e2e8f0;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -129,9 +129,9 @@ export default function LoginPage() {
           cursor: pointer;
           transition: all 0.2s;
           background: white;
-          color: var(--text-primary);
+          color: #0f172a;
         }
-        .auth-btn:hover { background: var(--bg-tertiary); transform: translateY(-1px); }
+        .auth-btn:hover { background: #f1f5f9; transform: translateY(-1px); }
         .auth-btn.google { background: #111; color: white; border: none; margin-bottom: 12px; }
         .auth-btn.google:hover { background: #000; }
         
@@ -159,11 +159,11 @@ export default function LoginPage() {
           width: 100%;
           padding: 12px 16px;
           border-radius: 10px;
-          border: 1px solid var(--border-color);
+          border: 1px solid #e2e8f0;
           font-size: 15px;
           transition: border-color 0.2s;
         }
-        .input-group input:focus { outline: none; border-color: var(--accent-color); }
+        .input-group input:focus { outline: none; border-color: #2563eb; }
         
         .w-full { width: 100%; justify-content: center; padding: 14px; }
         
@@ -172,7 +172,7 @@ export default function LoginPage() {
           margin: 16px auto 0;
           background: none;
           border: none;
-          color: var(--text-secondary);
+          color: #64748b;
           font-weight: 500;
           cursor: pointer;
           font-size: 14px;
