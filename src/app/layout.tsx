@@ -4,6 +4,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -13,6 +14,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Auth & Onboarding Logic
+  useEffect(() => {
+    const session = JSON.parse(localStorage.getItem('w2r_session') || 'null');
+    const isAuthPage = pathname === '/login' || pathname === '/onboarding';
+
+    if (!session && !isAuthPage) {
+      router.push('/login');
+    } else if (session?.isNew && pathname !== '/onboarding') {
+      router.push('/onboarding');
+    } else if (session && !session.isNew && pathname === '/login') {
+      router.push('/');
+    }
+    
+    setIsReady(true);
+  }, [pathname, router]);
 
   // Set initial state based on screen size
   useEffect(() => {
@@ -24,16 +44,25 @@ export default function RootLayout({
       }
     };
 
-    handleResize(); // Set initial
+    handleResize(); 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (!isReady && pathname !== '/login' && pathname !== '/onboarding') {
-    return <html lang="en"><body className={`${inter.variable}`}><div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div></body></html>;
-  }
-
   const isAuthPage = pathname === '/login' || pathname === '/onboarding';
+
+  // Prevent flicker during auth check
+  if (!isReady && !isAuthPage) {
+    return (
+      <html lang="en">
+        <body className={inter.variable}>
+          <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
+            <div className="sidebar-logo animate-pulse">W2R</div>
+          </div>
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="en">
