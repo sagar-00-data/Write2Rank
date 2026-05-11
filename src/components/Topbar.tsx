@@ -1,6 +1,6 @@
-'use client';
-import { Bell, Search, User, Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { Menu, Search, Bell } from 'lucide-react';
+
 
 interface TopbarProps {
   toggleSidebar: () => void;
@@ -12,6 +12,7 @@ export default function Topbar({ toggleSidebar }: TopbarProps) {
   const getBreadcrumb = () => {
     if (pathname === '/') return 'Dashboard';
     const path = pathname.split('/')[1];
+    if (!path) return 'Dashboard';
     return path.charAt(0).toUpperCase() + path.slice(1);
   };
 
@@ -28,9 +29,7 @@ export default function Topbar({ toggleSidebar }: TopbarProps) {
       <div className="topbar-actions">
         <Search size={18} className="action-icon" />
         <Bell size={18} className="action-icon" />
-        <div className="user-avatar">
-          <User size={16} />
-        </div>
+
       </div>
     </header>
   );

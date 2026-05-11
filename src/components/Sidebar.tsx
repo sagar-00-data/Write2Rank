@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, Settings, HelpCircle, BarChart2, X, LogOut, Plus } from 'lucide-react';
+import { Home, FileText, Settings, HelpCircle, BarChart2, X, Plus } from 'lucide-react';
+
 
 interface SidebarProps {
   isOpen: boolean;
@@ -66,18 +67,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             );
           })}
         </div>
-        
-        <button 
-          onClick={() => {
-            localStorage.removeItem('w2r_user');
-            window.location.href = '/login';
-          }}
-          className="nav-item logout-btn"
-        >
-          <LogOut size={20} />
-          <span>Logout</span>
-        </button>
       </nav>
     </aside>
   );
 }
+

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Upload, File, X, ArrowRight, Loader, Edit3, HelpCircle, CheckCircle2, Sparkles, Wand2, Info } from 'lucide-react';
+import { Upload, File, X, ArrowRight, Loader, Edit3, HelpCircle, Sparkles, Wand2, Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function NewEvaluation() {
@@ -13,13 +13,13 @@ export default function NewEvaluation() {
   const [extractedAnswer, setExtractedAnswer] = useState<string>('');
   const [examType, setExamType] = useState<string>('CS Executive - Company Law');
   const [step, setStep] = useState(1); // 1: Upload, 2: Review/Edit
-  
+
   const router = useRouter();
 
-  const callOcrApi = async (file: File): Promise<{text: string, notice?: string}> => {
+  const callOcrApi = async (file: File): Promise<{ text: string, notice?: string }> => {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const response = await fetch('/api/ocr', {
       method: 'POST',
       body: formData,
@@ -37,7 +37,7 @@ export default function NewEvaluation() {
   const handleExtractOCR = async () => {
     if (!answerFile) return;
     setIsExtracting(true);
-    
+
     try {
       // Extract Answer Sheet (Required)
       const answer = await callOcrApi(answerFile);
@@ -51,9 +51,9 @@ export default function NewEvaluation() {
       }
 
       setStep(2);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Extraction Error:', error);
-      alert(error.message || "OCR Extraction failed. Please try again or use manual extraction.");
+      alert(error instanceof Error ? error.message : "OCR Extraction failed. Please try again or use manual extraction.");
     } finally {
       setIsExtracting(false);
     }
@@ -92,10 +92,10 @@ export default function NewEvaluation() {
       const response = await fetch('/api/evaluate-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           answerText: extractedAnswer,
           questionText: extractedQuestion,
-          examType 
+          examType
         }),
       });
 
@@ -133,25 +133,51 @@ export default function NewEvaluation() {
           <p style={{ color: 'var(--text-secondary)' }}>Powered by Gemini Vision for High-Accuracy Handwriting Recognition.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-           <div style={{ padding: '8px 16px', borderRadius: '20px', backgroundColor: step === 1 ? 'var(--accent-color)' : 'var(--bg-tertiary)', color: step === 1 ? 'white' : 'var(--text-secondary)', fontSize: '12px', fontWeight: 600 }}>1. UPLOAD</div>
-           <div style={{ padding: '8px 16px', borderRadius: '20px', backgroundColor: step === 2 ? 'var(--accent-color)' : 'var(--bg-tertiary)', color: step === 2 ? 'white' : 'var(--text-secondary)', fontSize: '12px', fontWeight: 600 }}>2. REVIEW & EDIT</div>
+          <div style={{ padding: '8px 16px', borderRadius: '20px', backgroundColor: step === 1 ? 'var(--accent-color)' : 'var(--bg-tertiary)', color: step === 1 ? 'white' : 'var(--text-secondary)', fontSize: '12px', fontWeight: 600 }}>1. UPLOAD</div>
+          <div style={{ padding: '8px 16px', borderRadius: '20px', backgroundColor: step === 2 ? 'var(--accent-color)' : 'var(--bg-tertiary)', color: step === 2 ? 'white' : 'var(--text-secondary)', fontSize: '12px', fontWeight: 600 }}>2. REVIEW & EDIT</div>
         </div>
       </div>
-      
+
       {step === 1 ? (
         <div className="card" style={{ padding: '40px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
             <h2 className="card-title" style={{ margin: 0 }}>Step 1: Upload Documents</h2>
-            <select 
-              value={examType} 
+            <select
+              value={examType}
               onChange={(e) => setExamType(e.target.value)}
               style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontWeight: 500 }}
             >
-              <option>CS Executive - Company Law</option>
-              <option>CS Executive - JIGL</option>
-              <option>CA Final - Financial Reporting</option>
-              <option>CA Inter - Corporate Law</option>
-              <option>CMA Final - SFM</option>
+              <optgroup label="Chartered Accountant (CA)">
+                <option>CA Final - Financial Reporting</option>
+                <option>CA Final - Strategic Financial Management</option>
+                <option>CA Final - Advanced Auditing</option>
+                <option>CA Final - Direct Tax Laws</option>
+                <option>CA Final - Indirect Tax Laws</option>
+                <option>CA Inter - Corporate Law</option>
+                <option>CA Inter - Accounting</option>
+                <option>CA Inter - Cost & Management Accounting</option>
+                <option>CA Inter - Taxation</option>
+                <option>CA Foundation - Principles of Accounting</option>
+              </optgroup>
+              <optgroup label="Company Secretary (CS)">
+                <option>CS Executive - Company Law</option>
+                <option>CS Executive - JIGL</option>
+                <option>CS Executive - Tax Laws</option>
+                <option>CS Professional - Governance & Sustainability</option>
+                <option>CS Professional - Drafting & Appearances</option>
+              </optgroup>
+              <optgroup label="Cost & Management Accountant (CMA)">
+                <option>CMA Final - Strategic Financial Management</option>
+                <option>CMA Final - Strategic Cost Management</option>
+                <option>CMA Inter - Financial Accounting</option>
+                <option>CMA Inter - Laws & Ethics</option>
+              </optgroup>
+              <optgroup label="Other Professional Exams">
+                <option>ICSI - Professional Programme</option>
+                <option>ICAI - CPT</option>
+                <option>MBA - Finance</option>
+                <option>LLB - Corporate Law</option>
+              </optgroup>
             </select>
           </div>
 
@@ -163,8 +189,8 @@ export default function NewEvaluation() {
                 <span style={{ fontWeight: 600, fontSize: '15px' }}>Question Paper (Optional)</span>
               </div>
               {!questionFile ? (
-                <label 
-                  className="upload-area" 
+                <label
+                  className="upload-area"
                   style={{ height: '240px', borderStyle: 'dashed', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => { e.preventDefault(); setQuestionFile(e.dataTransfer.files[0]); }}
@@ -193,8 +219,8 @@ export default function NewEvaluation() {
                 <span style={{ fontWeight: 600, fontSize: '15px' }}>Answer Sheet (Required)</span>
               </div>
               {!answerFile ? (
-                <label 
-                  className="upload-area" 
+                <label
+                  className="upload-area"
                   style={{ height: '240px', borderStyle: 'dashed', borderColor: 'var(--accent-color)', backgroundColor: 'rgba(0, 122, 255, 0.02)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => { e.preventDefault(); setAnswerFile(e.dataTransfer.files[0]); }}
@@ -251,10 +277,10 @@ export default function NewEvaluation() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <h2 className="card-title" style={{ margin: 0 }}>Step 2: Review Extraction</h2>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                className="btn btn-outline" 
-                style={{ padding: '10px 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }} 
-                onClick={handleImproveText} 
+              <button
+                className="btn btn-outline"
+                style={{ padding: '10px 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }}
+                onClick={handleImproveText}
                 disabled={isImproving || isEvaluating}
               >
                 {isImproving ? <Loader size={16} className="animate-spin" /> : <Wand2 size={16} />}
@@ -263,7 +289,7 @@ export default function NewEvaluation() {
               <button className="btn btn-outline" style={{ padding: '10px 20px', borderRadius: '8px' }} onClick={() => setStep(1)}>Back</button>
             </div>
           </div>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Question Text</label>

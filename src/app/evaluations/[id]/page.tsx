@@ -1,5 +1,5 @@
 'use client';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { CheckCircle, AlertTriangle, TrendingUp, Download, ArrowLeft } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -7,7 +7,6 @@ import { EvaluationRecord } from '../../page';
 
 export default function EvaluationDetail() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
   
   const [evaluation, setEvaluation] = useState<EvaluationRecord | null>(null);

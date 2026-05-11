@@ -1,5 +1,4 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Upload, CheckCircle, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -29,8 +28,6 @@ export interface EvaluationRecord {
 
 export default function Dashboard() {
   const [evals, setEvals] = useState<EvaluationRecord[]>([]);
-
-  const router = useRouter();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
