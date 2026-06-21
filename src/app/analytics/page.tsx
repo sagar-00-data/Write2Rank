@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
           console.warn('Supabase evaluations fetch error, falling back to localStorage:', evalsError);
           loadedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
         } else if (dbEvals && dbEvals.length > 0) {
-          loadedEvals = dbEvals.map((e) => ({
+          loadedEvals = dbEvals.map((e: any) => ({
             id: e.id,
             score: e.score,
             maxScore: e.max_score,

@@ -14,7 +14,7 @@ async function updateCSUserAnalytics(userId: string) {
     if (error || !evals || evals.length === 0) return;
 
     const count = evals.length;
-    const totalPercentage = evals.reduce((sum, e) => sum + (e.score / e.max_score) * 100, 0);
+    const totalPercentage = evals.reduce((sum: number, e: any) => sum + (e.score / e.max_score) * 100, 0);
     const avgScore = Math.round((totalPercentage / count) * 100) / 100;
 
     const weakTopicsMap: Record<string, number> = {};
@@ -34,17 +34,17 @@ async function updateCSUserAnalytics(userId: string) {
     });
 
     const weakTopics = Object.entries(weakTopicsMap)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
       .map(([topic]) => topic)
       .slice(0, 5);
 
     const strongTopics = Object.entries(strongTopicsMap)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
       .map(([topic]) => topic)
       .slice(0, 5);
 
     const trends = evals
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       .slice(-10)
       .map((e: any) => ({
         date: new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),

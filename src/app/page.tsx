@@ -57,7 +57,7 @@ export default function Dashboard() {
           const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
           setEvals(savedEvals);
         } else if (dbEvals && dbEvals.length > 0) {
-          const transformed: EvaluationRecord[] = dbEvals.map((e) => ({
+          const transformed: EvaluationRecord[] = dbEvals.map((e: any) => ({
             id: e.id,
             score: e.score,
             maxScore: e.max_score,

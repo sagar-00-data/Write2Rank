@@ -88,30 +88,30 @@ export default function AdminAnalytics() {
           startOfMonth.setDate(1);
           startOfMonth.setHours(0, 0, 0, 0);
 
-          const todayCount = usageLogs.filter(l => new Date(l.timestamp) >= startOfToday).length;
-          const monthCount = usageLogs.filter(l => new Date(l.timestamp) >= startOfMonth).length;
+          const todayCount = usageLogs.filter((l: any) => new Date(l.timestamp) >= startOfToday).length;
+          const monthCount = usageLogs.filter((l: any) => new Date(l.timestamp) >= startOfMonth).length;
 
           setEvalsToday(todayCount);
           setEvalsThisMonth(monthCount);
 
           // Success rates and performance times
-          const ocrRuns = usageLogs.filter(l => l.ocr_provider !== 'None');
-          const successfulOcrRuns = ocrRuns.filter(l => l.status === 'success');
-          const successfulRuns = usageLogs.filter(l => l.status === 'success');
-          const failedRuns = usageLogs.filter(l => l.status === 'failure');
+          const ocrRuns = usageLogs.filter((l: any) => l.ocr_provider !== 'None');
+          const successfulOcrRuns = ocrRuns.filter((l: any) => l.status === 'success');
+          const successfulRuns = usageLogs.filter((l: any) => l.status === 'success');
+          const failedRuns = usageLogs.filter((l: any) => l.status === 'failure');
 
           setOcrSuccessRate(ocrRuns.length > 0 ? Math.round((successfulOcrRuns.length / ocrRuns.length) * 100) : 100);
           setEvalSuccessRate(usageLogs.length > 0 ? Math.round((successfulRuns.length / usageLogs.length) * 100) : 100);
           setApiFailures(failedRuns.length);
 
-          const totalOcrTime = successfulRuns.reduce((acc, l) => acc + (l.ocr_time_ms || 0), 0);
-          const totalEvalTime = successfulRuns.reduce((acc, l) => acc + (l.evaluation_time_ms || 0), 0);
+          const totalOcrTime = successfulRuns.reduce((acc: number, l: any) => acc + (l.ocr_time_ms || 0), 0);
+          const totalEvalTime = successfulRuns.reduce((acc: number, l: any) => acc + (l.evaluation_time_ms || 0), 0);
 
           setAvgOcrTime(successfulRuns.length > 0 ? Math.round(totalOcrTime / successfulRuns.length) : 0);
           setAvgEvalTime(successfulRuns.length > 0 ? Math.round(totalEvalTime / successfulRuns.length) : 0);
 
           // Quota failures check (e.g. status includes rate limit, or failed evals)
-          const quotaFails = usageLogs.filter(l => l.status === 'failure' && (l.gemini_model === 'Quota Exceeded' || l.ocr_provider === 'Quota Exceeded')).length;
+          const quotaFails = usageLogs.filter((l: any) => l.status === 'failure' && (l.gemini_model === 'Quota Exceeded' || l.ocr_provider === 'Quota Exceeded')).length;
           setQuotaFailures(quotaFails);
 
           // User leaderboard
@@ -129,7 +129,7 @@ export default function AdminAnalytics() {
           // Fetch user details to display leaderboard emails
           const { data: userData } = await supabase.from('users').select('id, name, email');
           if (userData) {
-            userData.forEach(u => {
+            userData.forEach((u: any) => {
               if (userCounts[u.id]) {
                 userCounts[u.id].email = u.email;
                 userCounts[u.id].name = u.name;
@@ -148,11 +148,11 @@ export default function AdminAnalytics() {
           setTotalGeminiCalls(geminiLogs.length);
           
           // Calculate OCR calls vs Evaluation calls
-          const ocrCallCount = geminiLogs.filter(l => l.model_name.includes('vision') || l.model_name.includes('flash')).length; // since ocr uses vision
+          const ocrCallCount = geminiLogs.filter((l: any) => l.model_name.includes('vision') || l.model_name.includes('flash')).length; // since ocr uses vision
           setTotalOcrCalls(ocrCallCount);
 
-          const tokensSum = geminiLogs.reduce((acc, l) => acc + (l.total_tokens || 0), 0);
-          const costSum = geminiLogs.reduce((acc, l) => acc + parseFloat(l.estimated_cost || 0), 0);
+          const tokensSum = geminiLogs.reduce((acc: number, l: any) => acc + (l.total_tokens || 0), 0);
+          const costSum = geminiLogs.reduce((acc: number, l: any) => acc + parseFloat(l.estimated_cost || 0), 0);
 
           setTotalTokens(tokensSum);
           setTotalApiCost(costSum);
