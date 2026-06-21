@@ -13,6 +13,7 @@
 google-credentials.json
 google-credentials*.json
 *.pem
+*.pdf
 
 # 2. Package Dependencies (Downloaded automatically during build)
 /node_modules/
@@ -41,3 +42,4 @@ yarn-error.log*
 /plans/
 .DS_Store
 Thumbs.db
+src/services/rag-core/knowledge-base/
