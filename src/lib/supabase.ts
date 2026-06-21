@@ -21,22 +21,22 @@ export const supabase = new Proxy({} as any, {
   get(target, prop) {
     if (!rawSupabase) {
       console.warn(`⚠️ Supabase client accessed but not configured. Property read: "${String(prop)}"`);
-      // Return a dummy object structure to prevent crashes when methods like .from() or .select() are chained
-      const dummyChainer = () => dummyChainer;
-      Object.setPrototypeOf(dummyChainer, {
-        select: dummyChainer,
-        insert: dummyChainer,
-        update: dummyChainer,
-        upsert: dummyChainer,
-        delete: dummyChainer,
-        eq: dummyChainer,
-        order: dummyChainer,
-        limit: dummyChainer,
-        maybeSingle: dummyChainer,
-        single: dummyChainer,
-        then: (resolve: any) => resolve({ data: null, error: new Error('Supabase not configured') })
+      
+      // A handler that intercepts any method call on our mock query builder and returns a self-referential function/object
+      const mockQueryBuilder: any = new Proxy(() => {}, {
+        get(t, p) {
+          // If they await the result (or access .then), resolve to a stubbed result
+          if (p === 'then') {
+            return (resolve: any) => resolve({ data: null, error: new Error('Supabase not configured') });
+          }
+          return mockQueryBuilder;
+        },
+        apply() {
+          return mockQueryBuilder;
+        }
       });
-      return prop === 'from' ? () => dummyChainer : dummyChainer;
+
+      return mockQueryBuilder;
     }
     return Reflect.get(rawSupabase, prop);
   }
