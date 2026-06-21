@@ -68,6 +68,8 @@ async function callGemini(modelName: string, contents: any): Promise<string> {
       const ai = new GoogleGenAI({ apiKey });
 
       try {
+        const masked = apiKey.substring(0, 6) + '...' + apiKey.substring(apiKey.length - 4);
+        console.log(`🌐 [RAG Service] callGemini: model ${model} key index ${currentRequestKeyIndex} (${masked})`);
         const result = await ai.models.generateContent({
           model: model,
           contents: contents,
@@ -81,6 +83,14 @@ async function callGemini(modelName: string, contents: any): Promise<string> {
         lastError = err;
         const errorMsg = err.message || '';
         const statusCode = String(err.status || err.statusCode || '');
+
+        console.error(`❌ [RAG Service] callGemini error:
+        Model: ${model}
+        Key Index: ${currentRequestKeyIndex}
+        Status Code: ${statusCode}
+        Message: ${errorMsg}
+        Stack: ${err.stack}
+        Full Object:`, JSON.stringify(err));
 
         const isQuotaOrUnavailable =
           errorMsg.includes('429') ||
@@ -104,7 +114,6 @@ async function callGemini(modelName: string, contents: any): Promise<string> {
         }
 
         // For non-quota/non-503 errors, or single-key setup, fail immediately for this model/key combination
-        console.error(`❌ [RAG Service] Error with model ${model} at key index ${currentRequestKeyIndex}:`, err);
         break;
       }
     }
@@ -176,7 +185,7 @@ async function formulateSearchQuery(questionText: string, answerText: string): P
   Output ONLY the search query string. Do NOT include explanations, quotes, or markdown formatting.
   `;
 
-  const result = await callGemini('gemini-3.5-flash', [{ role: 'user', parts: [{ text: prompt }] }]);
+  const result = await callGemini('gemini-2.5-flash', [{ role: 'user', parts: [{ text: prompt }] }]);
   return result.trim().replace(/^["']|["']$/g, '');
 }
 
@@ -234,7 +243,7 @@ async function evaluateChunkRelevance(
   Output ONLY the JSON object. Do not wrap in markdown \`\`\`json blocks.
   `;
 
-  const responseText = await callGemini('gemini-3.5-flash', [{ role: 'user', parts: [{ text: prompt }] }]);
+  const responseText = await callGemini('gemini-2.5-flash', [{ role: 'user', parts: [{ text: prompt }] }]);
   
   try {
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -422,13 +431,15 @@ export async function evaluateAnswerMultimodalStream(
       for (let attempt = 0; attempt < keysCount; attempt++) {
         const apiKey = keys[currentRequestKeyIndex] || process.env.GEMINI_API_KEY || '';
         if (!apiKey) {
+          console.warn(`[RAG Service] Empty key at index ${currentRequestKeyIndex}. Skipping...`);
           currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
           globalKeyIndex = currentRequestKeyIndex;
           continue;
         }
 
         const ai = new GoogleGenAI({ apiKey });
-        console.log(`🌐 [RAG Service] Attempting Multimodal Gemini call with key index ${currentRequestKeyIndex}...`);
+        const maskedKey = apiKey.substring(0, 6) + '...' + apiKey.substring(apiKey.length - 4);
+        console.log(`🌐 [RAG Service] Attempting Multimodal Gemini call (model: gemini-2.5-flash) with key index ${currentRequestKeyIndex} (${maskedKey}), attempt ${attempt + 1}/${keysCount}...`);
 
         try {
           const contents = [
@@ -448,7 +459,7 @@ export async function evaluateAnswerMultimodalStream(
 
           const streamStartTime = Date.now();
           const responseStream = await ai.models.generateContentStream({
-            model: 'gemini-3.5-flash',
+            model: 'gemini-2.5-flash',
             contents: contents,
             config: {
               thinking_level: 'minimal',
@@ -469,7 +480,7 @@ export async function evaluateAnswerMultimodalStream(
           const inputTokensEst = 4150; // Multimodal Prompt standard input size (RAG + image)
 
           await logGeminiUsage({
-            model_name: 'gemini-3.5-flash',
+            model_name: 'gemini-2.5-flash',
             input_tokens: inputTokensEst,
             output_tokens: outputTokensEst,
             total_tokens: inputTokensEst + outputTokensEst,
@@ -478,12 +489,19 @@ export async function evaluateAnswerMultimodalStream(
           });
           
           success = true;
-          console.log(`✅ [RAG Service] Gemini stream successfully completed.`);
+          console.log(`✅ [RAG Service] Gemini stream successfully completed using key index ${currentRequestKeyIndex}.`);
           break;
         } catch (err: any) {
           lastError = err;
           const errorMsg = err.message || '';
           const statusCode = String(err.status || err.statusCode || '');
+          
+          console.error(`❌ [RAG Service] Gemini Error on key index ${currentRequestKeyIndex}:
+          Model: gemini-2.5-flash
+          Status Code: ${statusCode}
+          Message: ${errorMsg}
+          Stack: ${err.stack}
+          Full Object:`, JSON.stringify(err));
 
           const isQuotaOrUnavailable =
             errorMsg.includes('429') ||
@@ -501,7 +519,6 @@ export async function evaluateAnswerMultimodalStream(
             await new Promise(resolve => setTimeout(resolve, 2000));
             continue;
           }
-          console.error(`❌ [RAG Service] Gemini error on attempt ${attempt}:`, err);
           break;
         }
       }
@@ -559,12 +576,14 @@ export async function evaluateAnswerMultimodalStream(
             }
 
             const ai = new GoogleGenAI({ apiKey });
-            console.log(`🌐 [RAG Service] Running text-only Gemini evaluation with key index ${currentRequestKeyIndex}...`);
+            const maskedKey = apiKey.substring(0, 6) + '...' + apiKey.substring(apiKey.length - 4);
+            console.log(`🌐 [RAG Service] Running text-only Gemini evaluation (model: gemini-2.5-flash) with key index ${currentRequestKeyIndex} (${maskedKey})...`);
+            
             try {
               const streamStartTime = Date.now();
               const textContents = [{ role: 'user', parts: [{ text: evaluationPrompt(extractedText) }] }];
               const responseStream = await ai.models.generateContentStream({
-                model: 'gemini-3.5-flash',
+                model: 'gemini-2.5-flash',
                 contents: textContents,
                 config: {
                   thinking_level: 'minimal',
@@ -584,7 +603,7 @@ export async function evaluateAnswerMultimodalStream(
               const inputTokensEst = 3500; // Average input tokens for text RAG prompt
 
               await logGeminiUsage({
-                model_name: 'gemini-3.5-flash',
+                model_name: 'gemini-2.5-flash',
                 input_tokens: inputTokensEst,
                 output_tokens: outputTokensEst,
                 total_tokens: inputTokensEst + outputTokensEst,
@@ -597,6 +616,14 @@ export async function evaluateAnswerMultimodalStream(
             } catch (err: any) {
               const errorMsg = err.message || '';
               const statusCode = String(err.status || err.statusCode || '');
+              
+              console.error(`❌ [RAG Service] Fallback Text Gemini Error on key index ${currentRequestKeyIndex}:
+              Model: gemini-2.5-flash
+              Status Code: ${statusCode}
+              Message: ${errorMsg}
+              Stack: ${err.stack}
+              Full Object:`, JSON.stringify(err));
+
               const isQuotaOrUnavailable =
                 errorMsg.includes('429') ||
                 errorMsg.includes('503') ||
@@ -623,7 +650,8 @@ export async function evaluateAnswerMultimodalStream(
 
         } catch (ocrErr: any) {
           console.error(`❌ [RAG Service] Fallback failed:`, ocrErr);
-          controller.enqueue(encoder.encode(`\n❌ Fatal Error: All Gemini keys and OCR.Space fallback are exhausted. Reason: ${ocrErr.message || ocrErr}`));
+          const errorMsg = ocrErr.message || ocrErr;
+          controller.enqueue(encoder.encode(`\n❌ Fatal Error: Evaluation pipeline collapsed. Reason: ${errorMsg}`));
         }
       }
 
