@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/app/api/ocr/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/evaluate-text/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/improve-text/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
