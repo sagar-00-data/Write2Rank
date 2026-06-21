@@ -1,25 +1,35 @@
-'use client';
-import { Bell, Search, User } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { Menu, Search, Bell } from 'lucide-react';
 
-export default function Topbar() {
+
+interface TopbarProps {
+  toggleSidebar: () => void;
+}
+
+export default function Topbar({ toggleSidebar }: TopbarProps) {
   const pathname = usePathname();
   
   const getBreadcrumb = () => {
     if (pathname === '/') return 'Dashboard';
     const path = pathname.split('/')[1];
+    if (!path) return 'Dashboard';
     return path.charAt(0).toUpperCase() + path.slice(1);
   };
 
   return (
     <header className="topbar">
+      <button className="menu-toggle" onClick={toggleSidebar}>
+        <Menu size={20} />
+      </button>
+      
       <div className="breadcrumb">
         Workspace / <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{getBreadcrumb()}</span>
       </div>
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: '16px', color: 'var(--text-secondary)' }}>
-        <Search size={20} style={{ cursor: 'pointer' }} />
-        <Bell size={20} style={{ cursor: 'pointer' }} />
-        <User size={20} style={{ cursor: 'pointer' }} />
+      
+      <div className="topbar-actions">
+        <Search size={18} className="action-icon" />
+        <Bell size={18} className="action-icon" />
+
       </div>
     </header>
   );

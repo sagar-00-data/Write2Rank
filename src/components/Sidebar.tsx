@@ -1,9 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, Settings, HelpCircle, BarChart2 } from 'lucide-react';
+import { Home, FileText, Settings, HelpCircle, BarChart2, X, Plus } from 'lucide-react';
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+}
+
+export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
 
   const navItems = [
@@ -14,47 +19,55 @@ export default function Sidebar() {
     { name: 'Help', path: '/help', icon: HelpCircle },
   ];
 
+  // Helper to close sidebar on mobile after clicking a link
+  const handleNavClick = () => {
+    if (window.innerWidth < 1024) {
+      setIsOpen(false);
+    }
+  };
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
-        <div className="sidebar-logo">W2R</div>
-        <div style={{ fontWeight: 600, fontSize: '15px' }}>Write2Rank</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="sidebar-logo">W2R</div>
+          <div className="sidebar-title">Write2Rank</div>
+        </div>
+        <button className="mobile-close" onClick={() => setIsOpen(false)}>
+          <X size={18} />
+        </button>
       </div>
 
-      <div style={{ padding: '20px 16px 0 16px' }}>
-        <Link href="/evaluations/new">
-          <button className="btn" style={{ width: '100%', justifyContent: 'center' }}>
-            + New Evaluation
+      <div className="sidebar-action">
+        <Link href="/evaluations/new" onClick={handleNavClick}>
+          <button className="btn sidebar-btn">
+            <Plus size={18} />
+            <span>New Evaluation</span>
           </button>
         </Link>
       </div>
 
-      <div className="sidebar-nav">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.path || (pathname.startsWith(item.path) && item.path !== '/');
-          return (
-            <Link href={item.path} key={item.path}>
-              <div className={`nav-item ${isActive ? 'active' : ''}`}>
-                <Icon size={18} />
-                <span style={{ fontSize: '14px', fontWeight: isActive ? 500 : 400 }}>{item.name}</span>
-              </div>
-            </Link>
-          );
-        })}
-        
-        <div 
-          onClick={() => {
-            localStorage.removeItem('w2r_user');
-            window.location.href = '/login';
-          }}
-          className="nav-item" 
-          style={{ marginTop: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger-color)' }}
-        >
-          <Home size={18} style={{ transform: 'rotate(180deg)' }} />
-          <span style={{ fontSize: '14px' }}>Logout</span>
+      <nav className="sidebar-nav">
+        <div className="nav-group">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.path || (pathname.startsWith(item.path) && item.path !== '/');
+            return (
+              <Link 
+                href={item.path} 
+                key={item.path} 
+                onClick={handleNavClick}
+              >
+                <div className={`nav-item ${isActive ? 'active' : ''}`}>
+                  <Icon size={20} />
+                  <span>{item.name}</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
-      </div>
+      </nav>
     </aside>
   );
 }
+

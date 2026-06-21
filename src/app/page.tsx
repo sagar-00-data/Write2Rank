@@ -1,8 +1,8 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Upload, CheckCircle, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface EvaluationRecord {
   id: string;
@@ -29,20 +29,66 @@ export interface EvaluationRecord {
 
 export default function Dashboard() {
   const [evals, setEvals] = useState<EvaluationRecord[]>([]);
-
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const user = localStorage.getItem('w2r_user');
-      if (!user) {
-        router.push('/login');
+    async function loadData() {
+      setIsLoading(true);
+      const isSupabaseConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!isSupabaseConfigured) {
+        const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
+        setEvals(savedEvals);
+        setIsLoading(false);
         return;
       }
-      const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
-      setTimeout(() => setEvals(savedEvals), 0);
+
+      try {
+        const targetUserId = '00000000-0000-0000-0000-000000000000';
+
+        const { data: dbEvals, error } = await supabase
+          .from('evaluations')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.warn('Supabase fetch error, falling back to localStorage:', error);
+          const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
+          setEvals(savedEvals);
+        } else if (dbEvals && dbEvals.length > 0) {
+          const transformed: EvaluationRecord[] = dbEvals.map((e) => ({
+            id: e.id,
+            score: e.score,
+            maxScore: e.max_score,
+            confidence: e.confidence,
+            status: 'completed',
+            exam: e.exam_type,
+            date: e.created_at,
+            extractedText: e.ocr_extracted_text,
+            feedback: {
+              overall: e.ai_feedback?.overall || '',
+              strengths: e.ai_feedback?.strengths || [],
+              weaknesses: e.ai_feedback?.weaknesses || []
+            },
+            breakdown: e.ai_feedback?.breakdown || []
+          }));
+          setEvals(transformed);
+          localStorage.setItem('write2rank_evals', JSON.stringify(transformed));
+        } else {
+          const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
+          setEvals(savedEvals);
+        }
+      } catch (err) {
+        console.warn('Failed to connect to Supabase, falling back to localStorage:', err);
+        const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
+        setEvals(savedEvals);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [router]);
+    loadData();
+  }, []);
 
   const totalEvals = evals.length;
   const avgScore = totalEvals > 0 ? Math.round(evals.reduce((sum, e) => sum + e.score, 0) / totalEvals) : 0;
@@ -91,7 +137,22 @@ export default function Dashboard() {
         <div className="card-desc">Your most recently processed answer sheets.</div>
         
         <div style={{ marginTop: '24px' }}>
-          {evals.length === 0 ? (
+          {isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="animate-pulse" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--bg-tertiary)' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ width: '150px', height: '16px', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }} />
+                      <div style={{ width: '100px', height: '12px', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)' }} />
+                    </div>
+                  </div>
+                  <div style={{ width: '80px', height: '32px', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)' }} />
+                </div>
+              ))}
+            </div>
+          ) : evals.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
               No evaluations yet. Start by uploading a new answer sheet!
             </div>
@@ -108,7 +169,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <div className="list-item-right">
                 <div className="font-medium">{item.score}/{item.maxScore}</div>
                 <div className={`status ${item.status}`}>
                   {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
