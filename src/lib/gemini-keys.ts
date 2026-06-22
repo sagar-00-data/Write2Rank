@@ -105,16 +105,9 @@ export async function callModelWithRotation(
       return result;
     } catch (err: any) {
       lastError = err;
-      const errorMsg = err.message || '';
       const statusCode = String(err.status || err.statusCode || '');
-      const isQuotaExhausted = 
-        errorMsg.includes('429') || 
-        errorMsg.includes('quota') || 
-        errorMsg.includes('RESOURCE_EXHAUSTED') ||
-        statusCode.includes('429');
-
-      if (isQuotaExhausted && attemptsLimit > 1) {
-        console.warn(`⚠️ Gemini API key exhausted (429). Rotating to next key (Attempt ${attempt + 1}/${attemptsLimit})...`);
+      if (attemptsLimit > 1) {
+        console.warn(`⚠️ Gemini API key failed (status: ${statusCode || 'unknown'}). Rotating to next key (Attempt ${attempt + 1}/${attemptsLimit})...`);
         continue;
       }
       throw err;

@@ -24,16 +24,26 @@ export interface CorrectiveRagResult {
   }>;
 }
 
-// Parse GEMINI_API_KEYS from environment variables
-const apiKeys = (process.env.GEMINI_API_KEYS || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-
-// Fallback to GEMINI_API_KEY if no keys are found in GEMINI_API_KEYS
-if (apiKeys.length === 0 && process.env.GEMINI_API_KEY) {
-  apiKeys.push(process.env.GEMINI_API_KEY.trim());
-}
+// Parse all Gemini API keys (comma-separated, numbered, and fallback)
+const apiKeys = (() => {
+  const keysSet = new Set<string>();
+  if (process.env.GEMINI_API_KEYS) {
+    process.env.GEMINI_API_KEYS.split(',').forEach(k => {
+      const trimmed = k.trim();
+      if (trimmed) keysSet.add(trimmed);
+    });
+  }
+  for (let i = 1; i <= 10; i++) {
+    const key = process.env[`GEMINI_API_KEY_${i}`];
+    if (key) {
+      keysSet.add(key.trim());
+    }
+  }
+  if (process.env.GEMINI_API_KEY) {
+    keysSet.add(process.env.GEMINI_API_KEY.trim());
+  }
+  return Array.from(keysSet);
+})();
 
 // Global index pointer for round-robin rotation across requests
 let globalKeyIndex = 0;
@@ -92,28 +102,19 @@ async function callGemini(modelName: string, contents: any): Promise<string> {
         Stack: ${err.stack}
         Full Object:`, JSON.stringify(err));
 
-        const isQuotaOrUnavailable =
-          errorMsg.includes('429') ||
-          errorMsg.includes('503') ||
-          errorMsg.includes('quota') ||
-          errorMsg.includes('RESOURCE_EXHAUSTED') ||
-          errorMsg.includes('UNAVAILABLE') ||
-          statusCode.includes('429') ||
-          statusCode.includes('503');
-
-        if (isQuotaOrUnavailable && keysCount > 1) {
-          console.warn(`⚠️ [RAG Service] Gemini API key index ${currentRequestKeyIndex} exhausted (${statusCode || 'Error'}). Rotating key...`);
+        if (keysCount > 1) {
+          console.warn(`⚠️ [RAG Service] Gemini API key index ${currentRequestKeyIndex} failed (${statusCode || 'Error'}: ${errorMsg.substring(0, 100)}). Rotating key...`);
           // Increment pointer to grab the next fresh backup key
           currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
           // Sync global index pointer
           globalKeyIndex = currentRequestKeyIndex;
 
-          // Wait 2 seconds before retry
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait 1.5 seconds before retry
+          await new Promise(resolve => setTimeout(resolve, 1500));
           continue;
         }
 
-        // For non-quota/non-503 errors, or single-key setup, fail immediately for this model/key combination
+        // For single-key setup or if we have tried all options, fail immediately for this model/key combination
         break;
       }
     }
@@ -307,23 +308,7 @@ export async function runCorrectiveRag(
 }
 
 function getGeminiKeys(): string[] {
-  const keysSet = new Set<string>();
-  if (process.env.GEMINI_API_KEYS) {
-    process.env.GEMINI_API_KEYS.split(',').forEach(k => {
-      const trimmed = k.trim();
-      if (trimmed) keysSet.add(trimmed);
-    });
-  }
-  for (let i = 1; i <= 10; i++) {
-    const key = process.env[`GEMINI_API_KEY_${i}`];
-    if (key) {
-      keysSet.add(key.trim());
-    }
-  }
-  if (process.env.GEMINI_API_KEY) {
-    keysSet.add(process.env.GEMINI_API_KEY.trim());
-  }
-  return Array.from(keysSet);
+  return apiKeys;
 }
 
 export async function evaluateAnswerMultimodalStream(
@@ -425,7 +410,6 @@ export async function evaluateAnswerMultimodalStream(
       globalKeyIndex = (globalKeyIndex + 1) % keysCount;
 
       let success = false;
-      let lastError: any;
 
       // PRIORITY 1 & 2: Multimodal Gemini Loop
       for (let attempt = 0; attempt < keysCount; attempt++) {
@@ -492,7 +476,6 @@ export async function evaluateAnswerMultimodalStream(
           console.log(`✅ [RAG Service] Gemini stream successfully completed using key index ${currentRequestKeyIndex}.`);
           break;
         } catch (err: any) {
-          lastError = err;
           const errorMsg = err.message || '';
           const statusCode = String(err.status || err.statusCode || '');
           
@@ -503,20 +486,11 @@ export async function evaluateAnswerMultimodalStream(
           Stack: ${err.stack}
           Full Object:`, JSON.stringify(err));
 
-          const isQuotaOrUnavailable =
-            errorMsg.includes('429') ||
-            errorMsg.includes('503') ||
-            errorMsg.includes('quota') ||
-            errorMsg.includes('RESOURCE_EXHAUSTED') ||
-            errorMsg.includes('UNAVAILABLE') ||
-            statusCode.includes('429') ||
-            statusCode.includes('503');
-
-          if (isQuotaOrUnavailable && keysCount > 1) {
-            console.warn(`⚠️ [RAG Service] Gemini API key index ${currentRequestKeyIndex} exhausted (${statusCode || 'Error'}). Intercepting and rotating key...`);
+          if (keysCount > 1) {
+            console.warn(`⚠️ [RAG Service] Gemini API key index ${currentRequestKeyIndex} failed (${statusCode || 'Error'}). Rotating key...`);
             currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
             globalKeyIndex = currentRequestKeyIndex;
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 1500));
             continue;
           }
           break;
@@ -624,20 +598,11 @@ export async function evaluateAnswerMultimodalStream(
               Stack: ${err.stack}
               Full Object:`, JSON.stringify(err));
 
-              const isQuotaOrUnavailable =
-                errorMsg.includes('429') ||
-                errorMsg.includes('503') ||
-                errorMsg.includes('quota') ||
-                errorMsg.includes('RESOURCE_EXHAUSTED') ||
-                errorMsg.includes('UNAVAILABLE') ||
-                statusCode.includes('429') ||
-                statusCode.includes('503');
-
-              if (isQuotaOrUnavailable && keysCount > 1) {
-                console.warn(`⚠️ [RAG Service] Gemini API key index ${currentRequestKeyIndex} exhausted during text-only fallback. Rotating key...`);
+              if (keysCount > 1) {
+                console.warn(`⚠️ [RAG Service] Gemini API key index ${currentRequestKeyIndex} failed during text-only fallback. Rotating key...`);
                 currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
                 globalKeyIndex = currentRequestKeyIndex;
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 1500));
                 continue;
               }
               throw err;
