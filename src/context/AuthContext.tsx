@@ -1,7 +1,6 @@
 'use client';
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
+import { createContext, useContext, useState, ReactNode } from 'react';
+import { Session } from '@supabase/supabase-js';
 
 type AuthUser = {
   id: string;
@@ -22,100 +21,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
-  isLoading: true,
+  isLoading: false,
   signInWithGoogle: async () => {},
   signOut: async () => {},
 });
 
+// Permanent guest user configuration mapped to Supabase 'Guest User' ID
+const GUEST_USER: AuthUser = {
+  id: '00000000-0000-0000-0000-000000000000',
+  email: 'guest@write2rank.com',
+  name: 'Guest User',
+  profilePhoto: '',
+  createdAt: new Date('2026-01-01').toISOString(),
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [session] = useState<Session | null>(null);
+  const [user] = useState<AuthUser | null>(GUEST_USER);
+  const [isLoading] = useState(false);
 
-  useEffect(() => {
-    // Check active sessions and sets the user
-    const initializeAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        if (session) {
-          setSession(session);
-          setUser(formatUser(session.user));
-          
-          // Optionally update last_login
-          await supabase
-            .from('users')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', session.user.id);
-        }
-      } catch (err) {
-        console.error('Error fetching session:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    // Listen for changes on auth state (sign in, sign out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
-      setSession(session);
-      if (session) {
-        setUser(formatUser(session.user));
-        // Only update last_login on SIGN_IN event
-        if (_event === 'SIGNED_IN') {
-          await supabase
-            .from('users')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', session.user.id);
-        }
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const formatUser = (user: User): AuthUser => {
-    return {
-      id: user.id,
-      email: user.email || '',
-      name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-      profilePhoto: user.user_metadata?.avatar_url || '',
-      createdAt: user.created_at,
-    };
-  };
-
+  // Authentication is disabled - no active OAuth logic
   const signInWithGoogle = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        },
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-      setIsLoading(false);
-    }
+    console.log('Google Auth is disabled in Guest mode.');
   };
-
+  
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setSession(null);
-      setUser(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    console.log('Sign Out is disabled in Guest mode.');
   };
 
   return (
@@ -128,3 +59,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   return useContext(AuthContext);
 };
+
