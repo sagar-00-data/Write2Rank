@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Upload, File as FileIcon, X, ArrowRight, Loader, Edit3, HelpCircle, Sparkles, Wand2, Info, BookOpen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 interface StreamData {
   provisions: string;
@@ -103,6 +104,7 @@ export default function NewEvaluation() {
   const [answerImageMime, setAnswerImageMime] = useState<string>('image/jpeg');
 
   const router = useRouter();
+  const { user } = useAuth();
 
   const processImageFile = async (file: File): Promise<File> => {
     const isImage = /\.(png|jpe?g)$/i.test(file.name) || file.type.startsWith('image/');
@@ -209,16 +211,17 @@ export default function NewEvaluation() {
 
       setExtractionStatus('⚡ Transmitting optimized packet to examiner...');
 
-      // Extract Answer Sheet (Required)
-      const answer = await callOcrApi(processedAnswerFile);
+      // Extract Answer Sheet & Question Paper in Parallel
+      const answerPromise = callOcrApi(processedAnswerFile);
+      const questionPromise = processedQuestionFile 
+        ? callOcrApi(processedQuestionFile) 
+        : Promise.resolve({ text: '', notice: undefined });
+
+      const [answer, question] = await Promise.all([answerPromise, questionPromise]);
+
       setExtractedAnswer(answer.text);
       if (answer.notice) alert(answer.notice);
-
-      // Extract Question Paper (Optional)
-      if (processedQuestionFile) {
-        const question = await callOcrApi(processedQuestionFile);
-        setExtractedQuestion(question.text);
-      }
+      setExtractedQuestion(question.text);
 
       setStep(2);
     } catch (error) {
@@ -264,7 +267,7 @@ export default function NewEvaluation() {
     if (examType !== 'CS Executive - Company Law') {
       setIsEvaluating(true);
       try {
-        const userId = '00000000-0000-0000-0000-000000000000';
+        const userId = user?.id || '00000000-0000-0000-0000-000000000000';
         const response = await fetch('/api/evaluate-text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -327,7 +330,7 @@ export default function NewEvaluation() {
           questionText: extractedQuestion,
           base64Image: answerImageBase64,
           mimeType: answerImageMime,
-          userId: '00000000-0000-0000-0000-000000000000'
+          userId: user?.id || '00000000-0000-0000-0000-000000000000'
         }),
       });
 

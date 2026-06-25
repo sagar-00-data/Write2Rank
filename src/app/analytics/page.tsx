@@ -3,15 +3,19 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, BarChart3, Award, Target, Calendar, CheckCircle, AlertTriangle } from 'lucide-react';
 import { EvaluationRecord } from '@/app/page';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AnalyticsPage() {
   const [evals, setEvals] = useState<EvaluationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [weakTopics, setWeakTopics] = useState<string[]>([]);
   const [strongTopics, setStrongTopics] = useState<string[]>([]);
+  const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
     async function loadAnalyticsData() {
+      if (authLoading || !user) return;
+
       setIsLoading(true);
       const isSupabaseConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -24,7 +28,7 @@ export default function AnalyticsPage() {
       }
 
       try {
-        const targetUserId = '00000000-0000-0000-0000-000000000000';
+        const targetUserId = user.id;
         
         // 1. Fetch evaluations
         const { data: dbEvals, error: evalsError } = await supabase
@@ -57,7 +61,7 @@ export default function AnalyticsPage() {
           }));
           localStorage.setItem('write2rank_evals', JSON.stringify(loadedEvals));
         } else {
-          loadedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
+          loadedEvals = [];
         }
 
         setEvals(loadedEvals);

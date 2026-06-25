@@ -152,7 +152,8 @@ Total Score: ${cachedEval.score}/100
       questionText || '',
       base64Image || '',
       mimeType || 'image/jpeg',
-      ragResult.context
+      ragResult.context,
+      answerText || ''
     );
 
     const reader = ocrStream.getReader();

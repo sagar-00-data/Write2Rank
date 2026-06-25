@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Upload, CheckCircle, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 export interface EvaluationRecord {
   id: string;
@@ -30,9 +31,13 @@ export interface EvaluationRecord {
 export default function Dashboard() {
   const [evals, setEvals] = useState<EvaluationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
     async function loadData() {
+      // Don't try loading data if auth hasn't loaded or user is missing
+      if (authLoading || !user) return;
+      
       setIsLoading(true);
       const isSupabaseConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -44,7 +49,7 @@ export default function Dashboard() {
       }
 
       try {
-        const targetUserId = '00000000-0000-0000-0000-000000000000';
+        const targetUserId = user.id; // Use dynamic user ID
 
         const { data: dbEvals, error } = await supabase
           .from('evaluations')
@@ -76,8 +81,7 @@ export default function Dashboard() {
           setEvals(transformed);
           localStorage.setItem('write2rank_evals', JSON.stringify(transformed));
         } else {
-          const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
-          setEvals(savedEvals);
+          setEvals([]); // User has no evaluations
         }
       } catch (err) {
         console.warn('Failed to connect to Supabase, falling back to localStorage:', err);
@@ -88,7 +92,7 @@ export default function Dashboard() {
       }
     }
     loadData();
-  }, []);
+  }, [user, authLoading]);
 
   const totalEvals = evals.length;
   const avgScore = totalEvals > 0 ? Math.round(evals.reduce((sum, e) => sum + e.score, 0) / totalEvals) : 0;
@@ -96,7 +100,7 @@ export default function Dashboard() {
 
   return (
     <div className="page-container animate-fade-in">
-      <h1 className="page-title stagger-1">Dashboard</h1>
+      <h1 className="page-title stagger-1">Welcome back, {user?.name?.split(' ')[0] || 'Student'}!</h1>
       
       <div className="stat-grid stagger-2">
         <div className="stat-card">

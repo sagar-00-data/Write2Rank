@@ -123,27 +123,91 @@ async function callGemini(modelName: string, contents: any): Promise<string> {
   throw lastError;
 }
 
+const embeddingCache = new Map<string, number[]>();
+
 async function getQueryEmbedding(text: string): Promise<number[]> {
+  const cacheKey = text.trim();
+  if (embeddingCache.has(cacheKey)) {
+    console.log('🎯 [Embedding Cache Hit] Returning cached embedding.');
+    return embeddingCache.get(cacheKey)!;
+  }
+
   const hfToken = process.env.HF_TOKEN || '';
-  const response = await fetch(
-    "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
-    {
-      headers: { 
-        'Content-Type': 'application/json',
-        ...(hfToken ? { Authorization: `Bearer ${hfToken}` } : {}) 
-      },
-      method: "POST",
-      body: JSON.stringify({ inputs: text }),
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5 second timeout
+
+  try {
+    const response = await fetch(
+      "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
+      {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(hfToken ? { Authorization: `Bearer ${hfToken}` } : {}) 
+        },
+        method: "POST",
+        body: JSON.stringify({ 
+          inputs: text,
+          options: { wait_for_model: true, use_cache: true }
+        }),
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Hugging Face embedding query failed: ${response.status} - ${errorText}`);
     }
-  );
-  if (!response.ok) {
-    throw new Error(`Hugging Face embedding query failed: ${response.status}`);
+    const result = await response.json();
+    if (!Array.isArray(result)) {
+      throw new Error(`Invalid response format from Hugging Face: ${JSON.stringify(result)}`);
+    }
+    
+    embeddingCache.set(cacheKey, result);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-  const result = await response.json();
-  if (!Array.isArray(result)) {
-    throw new Error(`Invalid response format from Hugging Face: ${JSON.stringify(result)}`);
+}
+
+/**
+ * Fallback keyword-based search on database chunks when embedding fails or times out.
+ */
+async function searchVectorStoreKeywordFallback(queryText: string, matchCount = 5): Promise<SearchResult[]> {
+  console.log(`🔍 [RAG Service] Running database keyword search fallback for: "${queryText.substring(0, 50)}..."`);
+  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'from', 'up', 'down', 'in', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'write', 'answer', 'question', 'explain', 'draft', 'provision', 'provisions', 'section', 'act']);
+  
+  const keywords = queryText
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !stopWords.has(word))
+    .slice(0, 5);
+
+  if (keywords.length === 0) {
+    return [];
   }
-  return result;
+
+  const orConditions = keywords.map(kw => `chunk_content.ilike.%${kw}%`).join(',');
+  const { data, error } = await supabase
+    .from('icsi_knowledge_embeddings')
+    .select('id, chunk_content, metadata')
+    .or(orConditions)
+    .limit(matchCount);
+
+  if (error) {
+    console.error('Keyword fallback search error:', error);
+    throw error;
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    chunk_content: row.chunk_content,
+    metadata: row.metadata || {},
+    similarity: 0.5
+  }));
 }
 
 /**
@@ -294,16 +358,36 @@ export async function runCorrectiveRag(
       attempts,
     };
   } catch (error: any) {
-    console.error(`❌ Error in optimized RAG search:`, error.message || error);
-    return {
-      context: 'No relevant reference information found in database.',
-      attempts: [{
+    console.warn(`⚠️ Vector search failed, trying keyword fallback search... Error:`, error.message || error);
+    try {
+      const fallbackResults = await searchVectorStoreKeywordFallback(currentQuery, 5);
+      attempts.push({
         query: currentQuery,
-        resultsCount: 0,
-        relevance: 'low',
-        feedback: `Error occurred during vector retrieval: ${error.message || error}`,
-      }]
-    };
+        resultsCount: fallbackResults.length,
+        relevance: 'medium',
+        feedback: `Keyword fallback retrieval query executed due to: ${error.message || error}`,
+      });
+
+      const context = fallbackResults
+        .map((chunk, idx) => `[Source Document: ${chunk.metadata?.source_file || 'Unknown'}, Chunk: ${idx + 1}]\n${chunk.chunk_content}`)
+        .join('\n\n---\n\n');
+
+      return {
+        context: context || 'No relevant reference information found in database.',
+        attempts,
+      };
+    } catch (fallbackError: any) {
+      console.error(`❌ Keyword fallback search also failed:`, fallbackError.message || fallbackError);
+      return {
+        context: 'No relevant reference information found in database.',
+        attempts: [{
+          query: currentQuery,
+          resultsCount: 0,
+          relevance: 'low',
+          feedback: `Error occurred during retrieval & fallback: ${error.message || error} | ${fallbackError.message || fallbackError}`,
+        }]
+      };
+    }
   }
 }
 
@@ -315,7 +399,8 @@ export async function evaluateAnswerMultimodalStream(
   questionText: string,
   base64Data: string,
   mimeType: string,
-  ragContext: string
+  ragContext: string,
+  answerText?: string
 ): Promise<ReadableStream> {
   const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
   const keys = getGeminiKeys();
@@ -410,6 +495,76 @@ export async function evaluateAnswerMultimodalStream(
       globalKeyIndex = (globalKeyIndex + 1) % keysCount;
 
       let success = false;
+
+      // Fast-track: if answerText is already extracted and provided, perform direct text-only evaluation stream
+      if (answerText && answerText.trim()) {
+        console.log('⚡ [RAG Service] Found pre-extracted answerText. Fast-tracking to text-only evaluation stream...');
+        for (let attempt = 0; attempt < keysCount; attempt++) {
+          const apiKey = keys[currentRequestKeyIndex] || process.env.GEMINI_API_KEY || '';
+          if (!apiKey) {
+            currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
+            globalKeyIndex = currentRequestKeyIndex;
+            continue;
+          }
+
+          const ai = new GoogleGenAI({ apiKey });
+          const maskedKey = apiKey.substring(0, 6) + '...' + apiKey.substring(apiKey.length - 4);
+          console.log(`🌐 [RAG Service] Direct Text-only Evaluation (model: gemini-2.5-flash) with key index ${currentRequestKeyIndex} (${maskedKey})...`);
+
+          try {
+            const streamStartTime = Date.now();
+            const textContents = [{ role: 'user', parts: [{ text: evaluationPrompt(answerText) }] }];
+            const responseStream = await ai.models.generateContentStream({
+              model: 'gemini-2.5-flash',
+              contents: textContents,
+              config: {
+                thinking_level: 'minimal',
+                thinkingLevel: 'minimal'
+              } as any
+            });
+
+            let accumulatedChars = 0;
+            for await (const chunk of responseStream) {
+              if (chunk.text) {
+                accumulatedChars += chunk.text.length;
+                controller.enqueue(encoder.encode(chunk.text));
+              }
+            }
+            const latency = Date.now() - streamStartTime;
+            const outputTokensEst = Math.round(accumulatedChars / 4);
+            const inputTokensEst = 3500;
+
+            await logGeminiUsage({
+              model_name: 'gemini-2.5-flash',
+              input_tokens: inputTokensEst,
+              output_tokens: outputTokensEst,
+              total_tokens: inputTokensEst + outputTokensEst,
+              api_key_used: apiKey,
+              latency_ms: latency
+            });
+
+            success = true;
+            break;
+          } catch (err: any) {
+            const errorMsg = err.message || '';
+            const statusCode = String(err.status || err.statusCode || '');
+            console.error(`❌ [RAG Service] Text evaluation error on key index ${currentRequestKeyIndex}: ${errorMsg}`);
+            
+            if (keysCount > 1) {
+              currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
+              globalKeyIndex = currentRequestKeyIndex;
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              continue;
+            }
+            break;
+          }
+        }
+        
+        if (success) {
+          controller.close();
+          return;
+        }
+      }
 
       // PRIORITY 1 & 2: Multimodal Gemini Loop
       for (let attempt = 0; attempt < keysCount; attempt++) {

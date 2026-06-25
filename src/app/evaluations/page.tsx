@@ -4,15 +4,19 @@ import Link from 'next/link';
 import { Plus, Search, Filter, CheckCircle, Clock, Trash2, Loader2 } from 'lucide-react';
 import { EvaluationRecord } from '@/app/page';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 export default function EvaluationsList() {
   const [evals, setEvals] = useState<EvaluationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'pending'>('all');
+  const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
     async function loadData() {
+      if (authLoading || !user) return;
+      
       setIsLoading(true);
       const isSupabaseConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -24,7 +28,7 @@ export default function EvaluationsList() {
       }
 
       try {
-        const targetUserId = '00000000-0000-0000-0000-000000000000';
+        const targetUserId = user.id;
 
         const { data: dbEvals, error } = await supabase
           .from('evaluations')
@@ -56,8 +60,7 @@ export default function EvaluationsList() {
           setEvals(transformed);
           localStorage.setItem('write2rank_evals', JSON.stringify(transformed));
         } else {
-          const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
-          setEvals(savedEvals);
+          setEvals([]);
         }
       } catch (err) {
         console.warn('Failed to load from Supabase:', err);
@@ -68,7 +71,7 @@ export default function EvaluationsList() {
       }
     }
     loadData();
-  }, []);
+  }, [user, authLoading]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this evaluation?')) return;

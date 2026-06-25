@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, FileText, Settings, HelpCircle, BarChart2, X, Plus } from 'lucide-react';
+import Logo from './Logo';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div className="sidebar-logo">W2R</div>
+          <Logo size={32} />
           <div className="sidebar-title">Write2Rank</div>
         </div>
         <button className="mobile-close" onClick={() => setIsOpen(false)}>

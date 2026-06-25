@@ -74,3 +74,51 @@ CREATE TABLE IF NOT EXISTS gemini_usage_logs (
     latency_ms INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- 8. Update USERS table for Authentication
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
+-- 9. Row Level Security (RLS)
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id);
+
+ALTER TABLE evaluations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own evaluations" ON evaluations FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own evaluations" ON evaluations FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own analytics" ON analytics FOR SELECT USING (auth.uid() = user_id);
+
+ALTER TABLE user_usage_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own usage logs" ON user_usage_logs FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own usage logs" ON user_usage_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- 10. Auto Profile Creation Trigger
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.users (id, name, email, profile_photo)
+  VALUES (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'User'),
+    new.email,
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.analytics (user_id, average_score, weak_topics, strong_topics, evaluation_count, improvement_trends)
+  VALUES (new.id, 0.00, '[]'::jsonb, '[]'::jsonb, 0, '[]'::jsonb)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger the function every time a user is created
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
