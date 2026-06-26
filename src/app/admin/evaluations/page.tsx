@@ -41,7 +41,10 @@ export default function AdminEvaluationsPage() {
   };
 
   useEffect(() => {
-    fetchEvaluations();
+    // Run in microtask to avoid synchronous setState triggers during mounting
+    Promise.resolve().then(() => {
+      fetchEvaluations();
+    });
   }, []);
 
   const filteredEvals = evaluations.filter((e) => {

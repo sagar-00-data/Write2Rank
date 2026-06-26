@@ -2,15 +2,11 @@
 import { useState, useEffect } from 'react';
 import { 
   Settings, 
-  Activity, 
   Database, 
   Cpu, 
   Binary, 
   Key, 
   RefreshCw, 
-  AlertCircle, 
-  CheckCircle,
-  HelpCircle,
   Server
 } from 'lucide-react';
 

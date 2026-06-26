@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Users, Search, RefreshCw, AlertTriangle, ShieldCheck, Mail, Calendar, Activity } from 'lucide-react';
+import { Users, Search, RefreshCw, AlertTriangle, Mail, Calendar, Activity } from 'lucide-react';
 
 interface UserDetail {
   id: string;
@@ -36,7 +36,10 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    // Run in microtask to avoid synchronous setState triggers during mounting
+    Promise.resolve().then(() => {
+      fetchUsers();
+    });
   }, []);
 
   const filteredUsers = users.filter((u) => 
