@@ -1,6 +1,6 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
-import { CheckCircle2, AlertTriangle, ArrowLeft, Award, FileText, LayoutGrid, Sparkles, BookOpen, Ban, XCircle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ArrowLeft, Award, FileText, LayoutGrid, Sparkles, BookOpen, Ban, XCircle, Download, Share2, History, Plus } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { EvaluationRecord } from '../../page';
@@ -503,6 +503,189 @@ export default function EvaluationDetail() {
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 5. Next Actions Section */}
+      <div style={{ 
+        marginTop: '36px',
+        padding: '32px', 
+        backgroundColor: '#ffffff', 
+        border: '1px solid #e2e8f0', 
+        borderRadius: '24px',
+        boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)'
+      }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.3px', color: '#0f172a' }}>
+          <LayoutGrid size={18} color="#2563eb" />
+          Next Actions
+        </h3>
+        
+        {/* Buttons grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px'
+        }}>
+          {/* Primary CTA: Evaluate Another Answer */}
+          <Link href="/evaluations/new" style={{ textDecoration: 'none' }}>
+            <button style={{
+              width: '100%',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '14px 20px',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'background-color 0.2s, transform 0.1s',
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            >
+              <Plus size={16} /> Evaluate Another Answer
+            </button>
+          </Link>
+
+          {/* Dashboard */}
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <button style={{
+              width: '100%',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '14px 20px',
+              backgroundColor: '#ffffff',
+              color: '#475569',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }}
+            >
+              <LayoutGrid size={16} /> Dashboard
+            </button>
+          </Link>
+
+          {/* Evaluation History */}
+          <Link href="/evaluations" style={{ textDecoration: 'none' }}>
+            <button style={{
+              width: '100%',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '14px 20px',
+              backgroundColor: '#ffffff',
+              color: '#475569',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }}
+            >
+              <History size={16} /> Evaluation History
+            </button>
+          </Link>
+
+          {/* Download Report */}
+          <button 
+            onClick={() => window.print()}
+            style={{
+              width: '100%',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '14px 20px',
+              backgroundColor: '#ffffff',
+              color: '#475569',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }}
+          >
+            <Download size={16} /> Download Report
+          </button>
+
+          {/* Share Report */}
+          <button 
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({
+                  title: `Evaluation Report - ${evaluation.exam}`,
+                  text: `Check out my evaluation score of ${evaluation.score}/100!`,
+                  url: window.location.href,
+                }).catch(err => console.log(err));
+              } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert("Evaluation link copied to clipboard!");
+              }
+            }}
+            style={{
+              width: '100%',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '14px 20px',
+              backgroundColor: '#ffffff',
+              color: '#475569',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }}
+          >
+            <Share2 size={16} /> Share Report
+          </button>
         </div>
       </div>
       

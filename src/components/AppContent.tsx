@@ -29,8 +29,8 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // If on login page, just render the page without layout
-  if (pathname === '/login') {
+  // If on login page or any admin route, just render the page without standard user layout
+  if (pathname === '/login' || pathname.startsWith('/admin')) {
     return <>{children}</>;
   }
 
