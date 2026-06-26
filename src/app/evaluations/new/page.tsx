@@ -963,7 +963,7 @@ export default function NewEvaluation() {
         </div>
       )}
 
-      <style jsx global>{`
+      <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .animate-spin { animation: spin 1s linear infinite; }
         .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }

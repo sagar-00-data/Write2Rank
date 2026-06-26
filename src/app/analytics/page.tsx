@@ -357,7 +357,7 @@ export default function AnalyticsPage() {
         </>
       )}
 
-      <style jsx>{`
+      <style>{`
         .info-row {
           display: flex;
           padding: 12px 0;

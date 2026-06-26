@@ -157,7 +157,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
         </main>
       </div>
 
-      <style jsx global>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
           height: 6px;

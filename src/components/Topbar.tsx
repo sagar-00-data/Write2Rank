@@ -117,7 +117,7 @@ export default function Topbar({ toggleSidebar }: TopbarProps) {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @media (min-width: 640px) {
           .user-details { display: block !important; }
         }

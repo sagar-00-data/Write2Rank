@@ -140,7 +140,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .login-container {
           min-height: 100vh;
           display: grid;

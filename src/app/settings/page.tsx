@@ -118,7 +118,7 @@ export default function SettingsPage() {
         </section>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .settings-section {
           background: var(--bg-primary);
           border: 1px solid var(--border-color);
