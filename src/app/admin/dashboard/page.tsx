@@ -1,144 +1,130 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import {
-  Users, FileText, Activity, Binary, Cpu, DollarSign, Database, Key,
-  AlertTriangle, CheckCircle, RefreshCw, Clock, ShieldCheck, Zap,
-  Server, Layers, Sparkles, TrendingUp, ArrowUpRight, BarChart3,
-  Circle, Wifi, WifiOff, Eye, Hash
-} from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
+// ─────────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────────
+interface KeyData {
+  slot: string; masked: string; status: string;
+  todayRequests: number; estimatedRemaining: number;
+  isActive: boolean; lastUsedTime: string | null;
+  rotationCount: number; totalTokens: number;
+}
+interface ChartPoint {
+  date: string; evaluations: number; ocrRequests: number;
+  apiCalls: number; avgLatency: number; errorsCount: number; cost: number;
+}
+interface ErrorEntry {
+  message: string; count: number; lastOccurred: string; type: string; module: string; severity: string;
+}
+interface ActivityEntry { id: string; time: string; event: string; type: string; module: string; }
+interface Insight { text: string; type: 'info' | 'warning' | 'success' | 'critical'; }
 interface StatsData {
-  platform: {
-    totalEvaluations: number;
-    evalsToday: number;
-    evalsThisWeek: number;
-    avgEvaluationTime: number;
-    avgResponseTime: number;
-    successfulEvaluations: number;
-    failedEvaluations: number;
-    totalUsers?: number;
-    activeUsersToday?: number;
-  };
-  ocr: {
-    geminiOcrRequestsToday: number;
-    geminiOcrRequestsThisMonth: number;
-    ocrSuccessRate: number;
-    ocrFailureRate: number;
-    avgOcrTime: number;
-    ocrSpaceFallbackCount: number;
-    mostCommonOcrErrors: Array<{ message: string; count: number }>;
-    ocrQueueStatus: string;
-  };
-  apiKeys: {
-    activeKeys: number;
-    healthyKeys: number;
-    exhaustedKeys: number;
-    rotationStatus: string;
-    keys: Array<{
-      slot: string;
-      masked: string;
-      status: string;
-      todayRequests: number;
-      estimatedRemaining: number;
-      isActive: boolean;
-      lastUsedTime: string | null;
-    }>;
-  };
-  freeTier: {
-    ocrLimit: number;
-    ocrUsedToday: number;
-    ocrRemainingToday: number;
-    estimatedMonthlyUsage: number;
-    estimatedMonthlyRemaining: number;
-  };
-  cost: {
-    todayGeminiCost: number;
-    monthlyGeminiCost: number;
-    avgCostPerEval: number;
-    avgTokensPerEval: number;
-    avgOcrCost: number;
-  };
-  systemHealth: {
-    overall: string;
-    supabase: string;
-    gemini: string;
-    ocr: string;
-    rag: string;
-    api: string;
-  };
-  errors: {
-    recent: Array<{ message: string; count: number; lastOccurred: string; type: string }>;
-    mostCommon: Array<{ message: string; count: number; lastOccurred: string; type: string }>;
-    count429: number;
-    ocrErrors: number;
-    evalErrors: number;
-    buildErrors: number;
-  };
-  performance: {
-    avgEvaluationTime: number;
-    avgOcrTime: number;
-    fastestEvaluation: string;
-    slowestEvaluation: string;
-  };
-  liveActivity: Array<{ id: string; time: string; event: string; type: string }>;
-  chartData: Array<{
-    date: string;
-    evaluations: number;
-    ocrRequests: number;
-    apiCalls: number;
-    avgLatency: number;
-    errorsCount: number;
-  }>;
+  platform: { totalEvaluations: number; evalsToday: number; evalsYesterday: number; evalsThisWeek: number; avgEvaluationTime: number; avgResponseTime: number; successfulEvaluations: number; failedEvaluations: number; totalUsers: number; activeUsersToday: number; };
+  ocr: { geminiOcrRequestsToday: number; geminiOcrRequestsThisMonth: number; ocrSuccessRate: number; ocrFailureRate: number; avgOcrTime: number; ocrSpaceFallbackCount: number; ocrQueueStatus: string; totalOcrRuns: number; };
+  apiKeys: { activeKeys: number; healthyKeys: number; exhaustedKeys: number; rotationStatus: string; keys: KeyData[]; };
+  freeTier: { ocrLimit: number; ocrUsedToday: number; ocrRemainingToday: number; estimatedMonthlyUsage: number; estimatedMonthlyRemaining: number; daysRemainingInMonth: number; };
+  cost: { todayGeminiCost: number; monthlyGeminiCost: number; avgCostPerEval: number; avgTokensPerEval: number; totalCostAllTime: number; };
+  systemHealth: { overall: string; supabase: string; gemini: string; ocr: string; rag: string; api: string; };
+  errors: { recent: ErrorEntry[]; mostCommon: ErrorEntry[]; count429: number; ocrErrors: number; evalErrors: number; buildErrors: number; totalErrors: number; };
+  performance: { avgEvaluationTime: number; avgOcrTime: number; fastestEvaluation: string; slowestEvaluation: string; };
+  liveActivity: ActivityEntry[];
+  chartData: ChartPoint[];
+  insights: Insight[];
+  rag: { chunksCount: number; documentsIndexed: string[]; };
+  todaySummary: { evaluations: number; ocrRequests: number; successRate: number; apiCost: number; platformHealth: string; activeUsers: number; };
+  meta: { generatedAt: string; dataPoints: { userLogs: number; geminiLogs: number; }; };
 }
 
-const healthColor = (s: string) => {
-  switch (s?.toLowerCase()) {
-    case 'green': return { dot: '#10b981', badge: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', text: '#34d399', label: 'Operational' };
-    case 'yellow': return { dot: '#f59e0b', badge: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', text: '#fbbf24', label: 'Degraded' };
-    case 'red': return { dot: '#ef4444', badge: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)', text: '#f87171', label: 'Outage' };
-    default: return { dot: '#6b7280', badge: 'rgba(107,114,128,0.15)', border: 'rgba(107,114,128,0.3)', text: '#9ca3af', label: 'Unknown' };
-  }
+// ─────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────
+const C = {
+  bg: '#080b12',
+  card: '#0d1117',
+  border: 'rgba(255,255,255,0.07)',
+  borderLight: 'rgba(255,255,255,0.04)',
+  blue: '#3b82f6',
+  indigo: '#6366f1',
+  purple: '#a855f7',
+  emerald: '#10b981',
+  amber: '#f59e0b',
+  red: '#ef4444',
+  cyan: '#06b6d4',
+  text: '#f1f5f9',
+  textMuted: '#94a3b8',
+  textDim: '#475569',
 };
 
-function MiniChart({ data, color, maxVal }: { data: number[]; color: string; maxVal: number }) {
-  const max = Math.max(...data, maxVal, 1);
-  const w = 80; const h = 32;
-  const pts = data.map((v, i) => `${(i / Math.max(data.length - 1, 1)) * w},${h - (v / max) * h}`).join(' ');
+const healthPalette = (s: string) => {
+  const map: Record<string, any> = {
+    Green: { dot: C.emerald, text: '#34d399', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)', label: 'Operational' },
+    Yellow: { dot: C.amber, text: '#fbbf24', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)', label: 'Degraded' },
+    Red: { dot: C.red, text: '#f87171', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.25)', label: 'Outage' },
+  };
+  return map[s] || map.Green;
+};
+
+// ─────────────────────────────────────────────────────────────
+// SPARKLINE CHART
+// ─────────────────────────────────────────────────────────────
+function Sparkline({ vals, color, h = 36, w = 100 }: { vals: number[]; color: string; h?: number; w?: number }) {
+  if (!vals || vals.length < 2) return null;
+  const max = Math.max(...vals, 1);
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - (v / max) * (h - 4)}`).join(' ');
+  const areaPath = `M ${pts.split(' ')[0]} ${pts.split(' ').slice(1).map(p => 'L ' + p).join(' ')} L ${w},${h} L 0,${h} Z`;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: 'visible' }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5"
-        style={{ filter: `drop-shadow(0 0 3px ${color}80)` }} />
-      {data.map((v, i) => (
-        <circle key={i} cx={(i / Math.max(data.length - 1, 1)) * w} cy={h - (v / max) * h}
-          r={i === data.length - 1 ? 2.5 : 0} fill={color} />
-      ))}
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: 'visible', display: 'block' }}>
+      <defs>
+        <linearGradient id={`sg_${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#sg_${color.replace('#', '')})`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px ${color}60)` }} />
+      {vals.map((v, i) => i === vals.length - 1 ? (
+        <circle key={i} cx={(i / (vals.length - 1)) * w} cy={h - (v / max) * (h - 4)} r="3" fill={color} stroke={C.card} strokeWidth="1.5" />
+      ) : null)}
     </svg>
   );
 }
 
-function BarChart({ data, colorA, colorB, labelA, labelB }: {
-  data: Array<{ date: string; a: number; b: number }>;
-  colorA: string; colorB: string; labelA: string; labelB: string;
-}) {
-  const max = Math.max(...data.flatMap(d => [d.a, d.b]), 1);
+// ─────────────────────────────────────────────────────────────
+// BAR CHART
+// ─────────────────────────────────────────────────────────────
+function BarGroup({ data, keys, colors }: { data: ChartPoint[]; keys: (keyof ChartPoint)[]; colors: string[] }) {
+  const maxVal = Math.max(...data.flatMap(d => keys.map(k => Number(d[k]) || 0)), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: colorA, display: 'inline-block' }} />{labelA}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: colorB, display: 'inline-block' }} />{labelB}
-        </span>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {keys.map((k, i) => (
+          <div key={String(k)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: colors[i], display: 'inline-block' }} />
+            <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, textTransform: 'capitalize' }}>{String(k)}</span>
+          </div>
+        ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
-        {data.map((d, i) => (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, height: '100%', justifyContent: 'flex-end' }}>
-            <div style={{ width: '100%', display: 'flex', gap: 1, alignItems: 'flex-end', flex: 1, justifyContent: 'center' }}>
-              <div style={{ width: '45%', background: colorA, borderRadius: '2px 2px 0 0', height: `${(d.a / max) * 100}%`, minHeight: d.a > 0 ? 2 : 0, transition: 'height 0.3s ease', opacity: 0.85 }} />
-              <div style={{ width: '45%', background: colorB, borderRadius: '2px 2px 0 0', height: `${(d.b / max) * 100}%`, minHeight: d.b > 0 ? 2 : 0, transition: 'height 0.3s ease', opacity: 0.85 }} />
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 100 }}>
+        {data.map((d, di) => (
+          <div key={di} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, height: '100%', justifyContent: 'flex-end' }}>
+            <div style={{ width: '100%', display: 'flex', gap: 1, alignItems: 'flex-end', flex: 1 }}>
+              {keys.map((k, ki) => {
+                const val = Number(d[k]) || 0;
+                const pct = (val / maxVal) * 100;
+                return (
+                  <div key={String(k)} title={`${String(k)}: ${val}`} style={{
+                    flex: 1, background: colors[ki], opacity: 0.8,
+                    height: `${Math.max(pct, val > 0 ? 2 : 0)}%`,
+                    borderRadius: '2px 2px 0 0',
+                    minHeight: val > 0 ? 2 : 0,
+                    transition: 'height 0.4s ease',
+                    cursor: 'default',
+                  }} />
+                );
+              })}
             </div>
-            <span style={{ fontSize: 9, color: '#6b7280', fontFamily: 'monospace', marginTop: 4 }}>{d.date}</span>
+            <span style={{ fontSize: 8, color: C.textDim, marginTop: 4, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{d.date}</span>
           </div>
         ))}
       </div>
@@ -146,28 +132,122 @@ function BarChart({ data, colorA, colorB, labelA, labelB }: {
   );
 }
 
-export default function AdminDashboard() {
+// ─────────────────────────────────────────────────────────────
+// KPI CARD
+// ─────────────────────────────────────────────────────────────
+function KpiCard({ label, value, sub, icon, accent, sparkData }: {
+  label: string; value: string; sub: string; icon: string; accent: string; sparkData?: number[];
+}) {
+  return (
+    <div className="fd-card fd-hover" style={{ padding: '20px 22px 16px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
+        <span style={{ fontSize: 18, lineHeight: 1, padding: '7px', background: `${accent}18`, border: `1px solid ${accent}30`, borderRadius: 10 }}>{icon}</span>
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 800, color: C.text, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 500, marginBottom: sparkData ? 14 : 0 }}>{sub}</div>
+      {sparkData && <Sparkline vals={sparkData} color={accent} h={36} w={120} />}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROGRESS BAR
+// ─────────────────────────────────────────────────────────────
+function ProgressBar({ used, total, label, color = C.indigo }: { used: number; total: number; label: string; color?: string }) {
+  const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+  const statusColor = pct > 90 ? C.red : pct > 70 ? C.amber : color;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 11, color: statusColor, fontWeight: 700, fontFamily: 'monospace' }}>{used.toLocaleString()} / {total.toLocaleString()}</span>
+      </div>
+      <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${statusColor}CC, ${statusColor})`, borderRadius: 99, transition: 'width 0.6s ease' }} />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SECTION HEADER
+// ─────────────────────────────────────────────────────────────
+function SectionHeader({ title, badge, icon }: { title: string; badge?: string; icon: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 14, borderBottom: `1px solid ${C.borderLight}`, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 14 }}>{icon}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</span>
+      </div>
+      {badge && (
+        <span style={{ fontSize: 9, fontWeight: 700, color: C.textDim, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// HEALTH BADGE
+// ─────────────────────────────────────────────────────────────
+function HealthBadge({ status }: { status: string }) {
+  const h = healthPalette(status);
+  return (
+    <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: h.text, background: h.bg, border: `1px solid ${h.border}`, padding: '2px 8px', borderRadius: 5, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: h.dot, display: 'inline-block' }} />
+      {h.label}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// STAT MINI BOX
+// ─────────────────────────────────────────────────────────────
+function StatBox({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.borderLight}`, borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
+      <span style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SKELETON LOADER
+// ─────────────────────────────────────────────────────────────
+function Skeleton({ h = 120, r = 16, w }: { h?: number; r?: number; w?: string }) {
+  return <div className="fd-skeleton" style={{ height: h, borderRadius: r, width: w || '100%' }} />;
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────────────
+export default function FounderOperationsCenter() {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [pulse, setPulse] = useState(false);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
+  const [tick, setTick] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchTelemetry = useCallback(async (silent = false) => {
+  const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
+    setError(null);
     try {
-      const res = await fetch('/admin/api/stats');
-      if (!res.ok) throw new Error(`Stats API error: ${res.status}`);
+      const res = await fetch('/admin/api/stats', { cache: 'no-store' });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `HTTP ${res.status}`);
+      }
       const json = await res.json();
       setData(json);
-      setLastUpdated(new Date());
-      setPulse(true);
-      setTimeout(() => setPulse(false), 600);
-      setError(null);
+      setLastSync(new Date());
     } catch (err: any) {
-      setError(err.message || 'Connection failure');
+      setError(err.message || 'Failed to connect to telemetry API');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -175,218 +255,438 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchTelemetry();
-    const interval = setInterval(() => fetchTelemetry(true), 30000);
-    return () => clearInterval(interval);
-  }, [fetchTelemetry]);
+    fetchData();
+    timerRef.current = setInterval(() => { fetchData(true); setTick(t => t + 1); }, 30_000);
+    const clockInterval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      clearInterval(clockInterval);
+    };
+  }, [fetchData]);
 
+  const now = new Date();
+
+  // ── LOADING STATE ──────────────────────────────────────────
   if (loading) {
     return (
-      <div style={styles.page}>
-        <style>{cssStr}</style>
+      <div style={{ padding: '32px 36px', maxWidth: 1700, margin: '0 auto' }}>
+        <style>{CSS_STR}</style>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div style={styles.headerRow}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ ...styles.skeleton, width: 120, height: 16 }} />
-              <div style={{ ...styles.skeleton, width: 280, height: 32 }} />
+              <Skeleton h={12} w="120px" r={6} />
+              <Skeleton h={28} w="320px" r={8} />
+              <Skeleton h={12} w="250px" r={6} />
             </div>
-            <div style={{ ...styles.skeleton, width: 120, height: 40, borderRadius: 12 }} />
+            <Skeleton h={38} w="140px" r={12} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-            {[1,2,3,4].map(i => <div key={i} style={{ ...styles.skeleton, height: 120, borderRadius: 16 }} />)}
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} h={140} />)}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-            <div style={{ ...styles.skeleton, height: 300, borderRadius: 16 }} />
-            <div style={{ ...styles.skeleton, height: 300, borderRadius: 16 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 300px', gap: 16 }}>
+            <Skeleton h={260} />
+            <Skeleton h={260} />
+            <Skeleton h={260} />
           </div>
         </div>
       </div>
     );
   }
 
+  // ── ERROR STATE ────────────────────────────────────────────
   if (error || !data) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh' }}>
-        <style>{cssStr}</style>
-        <div style={{ textAlign: 'center', maxWidth: 400 }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <WifiOff size={28} color="#f87171" />
-          </div>
-          <h3 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', marginBottom: 8 }}>Telemetry Disconnected</h3>
-          <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>{error || 'Failed to fetch platform metrics.'}</p>
-          <button onClick={() => fetchTelemetry()} style={styles.btnPrimary}>
-            <RefreshCw size={14} /> Reconnect Console
-          </button>
+      <div style={{ padding: '32px 36px', maxWidth: 1700, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh' }}>
+        <style>{CSS_STR}</style>
+        <div style={{ textAlign: 'center', maxWidth: 480 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+          <h3 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 8 }}>Telemetry Disconnected</h3>
+          <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 8, lineHeight: 1.7 }}>{error}</p>
+          <p style={{ color: C.textDim, fontSize: 11, marginBottom: 24, lineHeight: 1.6 }}>
+            If you see &quot;SUPABASE_SERVICE_ROLE_KEY missing&quot;, add it to .env.local from your Supabase Dashboard → Project Settings → API.
+            Then run the SQL in <code style={{ color: C.indigo }}>supabase_admin_policies.sql</code> in your Supabase SQL Editor.
+          </p>
+          <button className="fd-btn-primary" onClick={() => fetchData()}>🔄 Reconnect</button>
         </div>
       </div>
     );
   }
 
-  const overallH = healthColor(data.systemHealth.overall);
-  const maxEvals = Math.max(...data.chartData.map(d => d.evaluations), 1);
+  const overall = healthPalette(data.systemHealth.overall);
+  const chartEvals = data.chartData.map(d => d.evaluations);
+  const chartOcr = data.chartData.map(d => d.ocrRequests);
+  const chartLatency = data.chartData.map(d => d.avgLatency);
+  const chartCost = data.chartData.map(d => d.cost * 1000); // scale for visibility
 
-  const barData = data.chartData.map(d => ({ date: d.date, a: d.evaluations, b: d.ocrRequests }));
-  const latencyData = data.chartData.map(d => d.avgLatency);
-
+  // ── MAIN RENDER ────────────────────────────────────────────
   return (
-    <div style={styles.page}>
-      <style>{cssStr}</style>
+    <div style={{ padding: '28px 32px', maxWidth: 1700, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <style>{CSS_STR}</style>
 
-      {/* ── Header ── */}
-      <div style={styles.headerRow}>
+      {/* ── TOP HEADER ─────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, paddingBottom: 22, borderBottom: `1px solid ${C.border}` }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <span style={styles.chipPurple}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#a78bfa', display: 'inline-block', animation: 'pulseGlow 2s infinite' }} />
-              Operations Center
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span className="fd-chip-purple">
+              <span className="fd-live-dot" />
+              Founder Operations
             </span>
-            <span style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
-              <Clock size={11} /> Auto-sync 30s
+            <span style={{ fontSize: 11, color: C.textDim, fontWeight: 500 }}>
+              ⏱ Auto-refresh every 30s
             </span>
           </div>
-          <h1 style={styles.pageTitle}>Founder Dashboard</h1>
-          <p style={styles.pageSubtitle}>Real-time platform intelligence & pipeline telemetry for Write2Rank</p>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, letterSpacing: '-0.025em', marginBottom: 4, lineHeight: 1 }}>
+            Write2Rank Operations Center
+          </h1>
+          <p style={{ fontSize: 13, color: C.textMuted, fontWeight: 500 }}>
+            Real-time platform intelligence · {now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Live status */}
-          <div style={styles.liveChip}>
-            <span style={{ ...styles.dot, background: overallH.dot, boxShadow: `0 0 8px ${overallH.dot}` }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: overallH.text }}>{overallH.label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {/* Platform status */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+            <HealthBadge status={data.systemHealth.overall} />
+            <span style={{ fontSize: 9, color: C.textDim, fontFamily: 'monospace' }}>
+              Last sync {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 9, color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Last Sync</div>
-            <div style={{ fontSize: 12, color: '#9ca3af', fontFamily: 'monospace', fontWeight: 600 }}>{lastUpdated.toLocaleTimeString()}</div>
+          {/* Clock */}
+          <div style={{ padding: '8px 14px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: C.textMuted, letterSpacing: '0.04em' }}>
+            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </div>
-          <button onClick={() => fetchTelemetry(true)} disabled={refreshing} style={styles.btnSecondary} className="hover-lift">
-            <RefreshCw size={13} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none', color: refreshing ? '#818cf8' : 'inherit' }} />
-            {refreshing ? 'Syncing...' : 'Sync Now'}
+          {/* Sync button */}
+          <button
+            className="fd-btn-secondary"
+            disabled={refreshing}
+            onClick={() => fetchData(true)}
+            style={{ opacity: refreshing ? 0.7 : 1 }}
+          >
+            <span style={{ display: 'inline-block', animation: refreshing ? 'fd-spin 0.8s linear infinite' : 'none' }}>⟳</span>
+            {refreshing ? 'Syncing…' : 'Sync Now'}
           </button>
         </div>
       </div>
 
-      {/* ── KPI Grid ── */}
-      <div style={styles.grid4}>
+      {/* ── DATA HEALTH WARNING ─────────────────────────── */}
+      {data.meta.dataPoints.userLogs === 0 && (
+        <div className="fd-card" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: 12 }}>
+          <span style={{ fontSize: 18 }}>⚠️</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24', marginBottom: 2 }}>No telemetry data recorded yet</div>
+            <div style={{ fontSize: 11, color: C.textMuted }}>
+              Run the SQL in <strong>supabase_admin_policies.sql</strong> in your Supabase SQL Editor, then add <strong>SUPABASE_SERVICE_ROLE_KEY</strong> to .env.local and restart the dev server. Run an evaluation to generate your first metrics.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── INSIGHTS BAR ───────────────────────────────── */}
+      {data.insights.length > 0 && (
+        <div className="fd-card" style={{ padding: '16px 20px' }}>
+          <SectionHeader title="AI Insights" icon="🧠" badge={`${data.insights.length} signals`} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {data.insights.map((ins, i) => {
+              const insColor = { info: C.blue, warning: C.amber, success: C.emerald, critical: C.red }[ins.type];
+              const insIcon = { info: 'ℹ', warning: '⚡', success: '✓', critical: '🚨' }[ins.type];
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: `${insColor}0d`, border: `1px solid ${insColor}20`, borderRadius: 10 }}>
+                  <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{insIcon}</span>
+                  <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 500, lineHeight: 1.6 }}>{ins.text}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── ROW 1: KPI CARDS ───────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         <KpiCard
           label="Total Evaluations"
           value={data.platform.totalEvaluations.toLocaleString()}
           sub={`${data.platform.evalsToday} today · ${data.platform.evalsThisWeek} this week`}
-          icon={<FileText size={18} />}
-          accentColor="#818cf8"
-          trend={data.platform.evalsToday}
-          miniData={data.chartData.map(d => d.evaluations)}
+          icon="📋"
+          accent={C.indigo}
+          sparkData={chartEvals}
         />
         <KpiCard
           label="OCR Success Rate"
           value={`${data.ocr.ocrSuccessRate}%`}
-          sub={`${data.ocr.ocrFailureRate}% failure · ${data.ocr.ocrSpaceFallbackCount} fallbacks`}
-          icon={<Binary size={18} />}
-          accentColor="#22d3ee"
-          trend={data.ocr.ocrSuccessRate}
-          miniData={data.chartData.map(d => d.ocrRequests)}
+          sub={`${data.ocr.ocrSpaceFallbackCount} fallbacks · ${data.ocr.totalOcrRuns} total runs`}
+          icon="🔍"
+          accent={C.cyan}
+          sparkData={chartOcr}
         />
         <KpiCard
           label="Avg Response Time"
           value={`${(data.platform.avgResponseTime / 1000).toFixed(2)}s`}
-          sub={`AI ${(data.platform.avgEvaluationTime / 1000).toFixed(2)}s · OCR ${(data.ocr.avgOcrTime / 1000).toFixed(2)}s`}
-          icon={<Clock size={18} />}
-          accentColor="#c084fc"
-          trend={null}
-          miniData={latencyData}
+          sub={`AI ${(data.performance.avgEvaluationTime / 1000).toFixed(2)}s · OCR ${(data.performance.avgOcrTime / 1000).toFixed(2)}s`}
+          icon="⚡"
+          accent={C.purple}
+          sparkData={chartLatency}
         />
         <KpiCard
-          label="Monthly Cost Est."
+          label="Monthly API Cost"
           value={`$${data.cost.monthlyGeminiCost.toFixed(4)}`}
-          sub={`Today: $${data.cost.todayGeminiCost.toFixed(5)}`}
-          icon={<DollarSign size={18} />}
-          accentColor="#34d399"
-          trend={null}
-          miniData={data.chartData.map(d => d.apiCalls)}
+          sub={`Today: $${data.cost.todayGeminiCost.toFixed(5)} · All time: $${data.cost.totalCostAllTime.toFixed(4)}`}
+          icon="💰"
+          accent={C.emerald}
+          sparkData={chartCost}
         />
       </div>
 
-      {/* ── Middle: Charts + Health ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', gap: 16 }}>
-        {/* Evaluations + OCR Bar Chart */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <span style={styles.cardTitle}><BarChart3 size={14} color="#818cf8" /> Volume Trends</span>
-            <span style={styles.chipSmall}>7 Days</span>
-          </div>
-          <BarChart data={barData} colorA="#6366f1" colorB="#06b6d4" labelA="Evals" labelB="OCR" />
-        </div>
+      {/* ── ROW 2: PLATFORM OPS + CHART + HEALTH ───────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 280px', gap: 16 }}>
 
-        {/* Latency Spark */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <span style={styles.cardTitle}><Activity size={14} color="#c084fc" /> Latency Trend</span>
-            <span style={{ fontSize: 11, color: '#a855f7', fontWeight: 600, background: 'rgba(168,85,247,0.1)', padding: '2px 8px', borderRadius: 6 }}>
-              Peak {Math.max(...latencyData, 0).toFixed(1)}s
-            </span>
+        {/* Platform Operations */}
+        <div className="fd-card" style={{ padding: '20px 22px' }}>
+          <SectionHeader title="Platform Operations" icon="🖥" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+            <StatBox label="Successful" value={data.platform.successfulEvaluations} color="#34d399" />
+            <StatBox label="Failed" value={data.platform.failedEvaluations} color="#f87171" />
+            <StatBox label="Users Total" value={data.platform.totalUsers} color={C.indigo} />
+            <StatBox label="Active Today" value={data.platform.activeUsersToday} color={C.cyan} />
           </div>
-          <div style={{ position: 'relative', height: 80, marginTop: 8 }}>
-            <svg width="100%" height="80" viewBox="0 0 300 80" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-              <defs>
-                <linearGradient id="latGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a855f7" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {(() => {
-                const max = Math.max(...latencyData, 0.1);
-                const pts = latencyData.map((v, i) => `${(i / Math.max(latencyData.length - 1, 1)) * 300},${80 - (v / max) * 70}`);
-                return <>
-                  <path d={`M ${pts[0]} ${pts.slice(1).map(p => 'L ' + p).join(' ')} L 300 80 L 0 80 Z`} fill="url(#latGrad)" />
-                  <polyline points={pts.join(' ')} fill="none" stroke="#a855f7" strokeWidth="2"
-                    style={{ filter: 'drop-shadow(0 0 6px rgba(168,85,247,0.5))' }} />
-                  {latencyData.map((v, i) => (
-                    <circle key={i} cx={(i / Math.max(latencyData.length - 1, 1)) * 300} cy={80 - (v / max) * 70}
-                      r="2.5" fill="#a855f7" />
-                  ))}
-                </>;
-              })()}
-            </svg>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            {data.chartData.map((d, i) => (
-              <span key={i} style={{ fontSize: 9, color: '#4b5563', fontFamily: 'monospace' }}>{d.date}</span>
-            ))}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 16 }}>
-            <div style={styles.miniStatCard}>
-              <span style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Fastest</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: '#34d399' }}>{data.performance.fastestEvaluation}s</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 600 }}>Overall Success Rate</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>
+                {data.platform.totalEvaluations > 0 ? Math.round((data.platform.successfulEvaluations / data.platform.totalEvaluations) * 100) : 100}%
+              </span>
             </div>
-            <div style={styles.miniStatCard}>
-              <span style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Slowest</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: '#fb923c' }}>{data.performance.slowestEvaluation}s</span>
+            <div style={{ height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${data.platform.totalEvaluations > 0 ? Math.round((data.platform.successfulEvaluations / data.platform.totalEvaluations) * 100) : 100}%`, background: 'linear-gradient(90deg, #34d399, #06b6d4)', borderRadius: 99, transition: 'width 0.5s ease' }} />
+            </div>
+            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: `1px solid ${C.borderLight}` }}>
+                <div style={{ fontSize: 9, color: C.textDim, fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fastest</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#34d399', fontFamily: 'monospace' }}>{data.performance.fastestEvaluation}s</div>
+              </div>
+              <div style={{ textAlign: 'center', padding: '10px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: `1px solid ${C.borderLight}` }}>
+                <div style={{ fontSize: 9, color: C.textDim, fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Slowest</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#fb923c', fontFamily: 'monospace' }}>{data.performance.slowestEvaluation}s</div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* System Health Panel */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <span style={styles.cardTitle}><Server size={14} color="#34d399" /> Infrastructure</span>
-            <span style={{ ...styles.dot, width: 8, height: 8, background: overallH.dot, boxShadow: `0 0 8px ${overallH.dot}` }} />
+        {/* 7-Day Volume Chart */}
+        <div className="fd-card" style={{ padding: '20px 22px' }}>
+          <SectionHeader title="7-Day Volume Trends" icon="📊" badge="last 7 days" />
+          <BarGroup
+            data={data.chartData}
+            keys={['evaluations', 'ocrRequests', 'apiCalls']}
+            colors={[C.indigo, C.cyan, C.purple]}
+          />
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 10, color: C.textDim, fontWeight: 600, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Avg Latency Trend (seconds)</div>
+            <Sparkline vals={chartLatency} color={C.purple} h={44} w={700} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+              {data.chartData.map((d, i) => (
+                <span key={i} style={{ fontSize: 8, color: C.textDim, fontFamily: 'monospace' }}>{d.date}</span>
+              ))}
+            </div>
           </div>
+        </div>
+
+        {/* System Health */}
+        <div className="fd-card" style={{ padding: '20px 22px' }}>
+          <SectionHeader title="Infrastructure" icon="🏗" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              { label: 'Supabase DB', status: data.systemHealth.supabase, icon: <Database size={13} /> },
-              { label: 'Gemini Gateway', status: data.systemHealth.gemini, icon: <Cpu size={13} /> },
-              { label: 'OCR Engine', status: data.systemHealth.ocr, icon: <Binary size={13} /> },
-              { label: 'RAG Index', status: data.systemHealth.rag, icon: <Layers size={13} /> },
-              { label: 'Operations API', status: data.systemHealth.api, icon: <Wifi size={13} /> },
-            ].map(({ label, status, icon }) => {
-              const h = healthColor(status);
+              { label: 'Supabase DB', s: data.systemHealth.supabase, icon: '🗄' },
+              { label: 'Gemini Gateway', s: data.systemHealth.gemini, icon: '🤖' },
+              { label: 'OCR Engine', s: data.systemHealth.ocr, icon: '🔍' },
+              { label: 'RAG Index', s: data.systemHealth.rag, icon: '📚' },
+              { label: 'API Layer', s: data.systemHealth.api, icon: '🔌' },
+            ].map(({ label, s, icon }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
+                <span style={{ fontSize: 12, color: '#d1d5db', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>{icon}</span>{label}
+                </span>
+                <HealthBadge status={s} />
+              </div>
+            ))}
+          </div>
+          {/* RAG info */}
+          <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(255,255,255,0.015)', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
+            <div style={{ fontSize: 9, color: C.textDim, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>RAG Knowledge Base</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{data.rag.chunksCount.toLocaleString()} chunks</div>
+            <div style={{ fontSize: 10, color: C.textMuted }}>{data.rag.documentsIndexed.length} document{data.rag.documentsIndexed.length !== 1 ? 's' : ''} indexed</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── ROW 3: GEMINI API KEY CENTER ────────────────── */}
+      <div className="fd-card" style={{ padding: '20px 24px' }}>
+        <SectionHeader title="Google Gemini API Key Center" icon="🔑" badge={data.apiKeys.rotationStatus} />
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                {['Slot', 'Key (Masked)', 'Status', 'Active', 'Requests Today', 'Remaining (Est)', 'Rotation #', 'Total Tokens', 'Last Used'].map(h => (
+                  <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.apiKeys.keys.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '24px 14px', textAlign: 'center', color: C.textDim, fontSize: 12 }}>
+                    No Gemini API keys detected. Add GEMINI_API_KEY or GEMINI_API_KEY_1 to .env.local
+                  </td>
+                </tr>
+              ) : data.apiKeys.keys.map((key) => {
+                const sColor = key.status === 'Healthy' ? '#34d399' : '#f87171';
+                const sBg = key.status === 'Healthy' ? 'rgba(52,211,153,0.08)' : 'rgba(248,113,113,0.08)';
+                const sBorder = key.status === 'Healthy' ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)';
+                return (
+                  <tr key={key.slot} className="fd-table-row" style={{ borderBottom: `1px solid ${C.borderLight}`, background: key.isActive ? 'rgba(99,102,241,0.03)' : 'transparent' }}>
+                    <td style={{ padding: '11px 14px', fontWeight: 700, color: C.text }}>{key.slot}</td>
+                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', color: C.textMuted, fontSize: 11 }}>{key.masked}</td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: sColor, background: sBg, border: `1px solid ${sBorder}`, padding: '2px 8px', borderRadius: 5 }}>
+                        {key.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      {key.isActive ? (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: C.indigo, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase' }}>
+                          ● Active
+                        </span>
+                      ) : <span style={{ color: C.textDim, fontSize: 11 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', color: '#d1d5db', textAlign: 'center' }}>{key.todayRequests}</td>
+                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', color: key.estimatedRemaining < 100 ? '#f87171' : C.textMuted, textAlign: 'center' }}>
+                      {key.estimatedRemaining.toLocaleString()}
+                    </td>
+                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', color: C.textMuted, textAlign: 'center' }}>{key.rotationCount}</td>
+                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', color: C.textDim, textAlign: 'center' }}>{key.totalTokens.toLocaleString()}</td>
+                    <td style={{ padding: '11px 14px', color: C.textDim, fontSize: 11 }}>
+                      {key.lastUsedTime ? new Date(key.lastUsedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── ROW 4: OCR + QUOTA ──────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* OCR Engine */}
+        <div className="fd-card" style={{ padding: '20px 22px' }}>
+          <SectionHeader title="OCR Engine Analytics" icon="📷" badge={data.ocr.ocrQueueStatus} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
+            <StatBox label="Gemini Today" value={data.ocr.geminiOcrRequestsToday} color={C.indigo} />
+            <StatBox label="This Month" value={data.ocr.geminiOcrRequestsThisMonth} color={C.cyan} />
+            <StatBox label="OCR.Space Fallbacks" value={data.ocr.ocrSpaceFallbackCount} color={C.amber} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <ProgressBar used={data.ocr.geminiOcrRequestsToday} total={data.freeTier.ocrLimit} label="Daily OCR Quota" color={C.cyan} />
+            <ProgressBar used={data.ocr.geminiOcrRequestsThisMonth} total={15000} label="Monthly OCR Scale" color={C.indigo} />
+          </div>
+          <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 9, color: C.textDim, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Success Rate</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#34d399' }}>{data.ocr.ocrSuccessRate}%</div>
+            </div>
+            <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 9, color: C.textDim, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Avg OCR Time</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.cyan }}>{(data.ocr.avgOcrTime / 1000).toFixed(2)}s</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quota + Cost */}
+        <div className="fd-card" style={{ padding: '20px 22px' }}>
+          <SectionHeader title="Quota & Cost Center" icon="💳" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 18 }}>
+            <ProgressBar used={data.freeTier.ocrUsedToday} total={data.freeTier.ocrLimit} label="Daily OCR Requests" color={C.cyan} />
+            <ProgressBar used={data.freeTier.estimatedMonthlyUsage} total={15000} label="Monthly OCR Requests" color={C.indigo} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            <StatBox label="Cost Today" value={`$${data.cost.todayGeminiCost.toFixed(5)}`} color="#34d399" />
+            <StatBox label="Monthly Cost" value={`$${data.cost.monthlyGeminiCost.toFixed(4)}`} color={C.cyan} />
+            <StatBox label="Avg / Eval" value={`$${data.cost.avgCostPerEval.toFixed(6)}`} color={C.purple} />
+            <StatBox label="Avg Tokens" value={data.cost.avgTokensPerEval.toLocaleString()} color={C.amber} />
+          </div>
+          <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.015)', borderRadius: 10, border: `1px solid ${C.borderLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: C.textMuted }}>Days remaining in month</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: 'monospace' }}>{data.freeTier.daysRemainingInMonth}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── ROW 5: ERRORS + LIVE ACTIVITY ──────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+        {/* Error Monitor */}
+        <div className="fd-card" style={{ padding: '20px 22px' }}>
+          <SectionHeader title="Error Monitor" icon="🚨" badge={data.errors.totalErrors > 0 ? `${data.errors.totalErrors} total` : 'Clean'} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+            <StatBox label="OCR Errors" value={data.errors.ocrErrors} color={data.errors.ocrErrors > 0 ? '#f87171' : '#34d399'} />
+            <StatBox label="AI Errors" value={data.errors.evalErrors} color={data.errors.evalErrors > 0 ? '#f87171' : '#34d399'} />
+            <StatBox label="429 Quota" value={data.errors.count429} color={data.errors.count429 > 0 ? C.amber : '#34d399'} />
+          </div>
+          <div style={{ maxHeight: 260, overflowY: 'auto' }} className="fd-scroll">
+            {data.errors.recent.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.textMuted }}>No errors logged</div>
+                <div style={{ fontSize: 11, color: C.textDim, marginTop: 4 }}>Platform is running cleanly</div>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                    {['Timestamp', 'Module', 'Count', 'Message'].map(h => (
+                      <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontSize: 9, fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.errors.recent.map((err, i) => (
+                    <tr key={i} className="fd-table-row" style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                      <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 10, color: C.textDim, whiteSpace: 'nowrap' }}>
+                        {new Date(err.lastOccurred).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td style={{ padding: '8px 10px' }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', padding: '2px 6px', borderRadius: 4 }}>
+                          {err.module}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontWeight: 800, color: '#f87171', textAlign: 'center' }}>{err.count}×</td>
+                      <td style={{ padding: '8px 10px', color: C.textMuted, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={err.message}>{err.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Live Activity Feed */}
+        <div className="fd-card" style={{ padding: '20px 22px' }}>
+          <SectionHeader title="Live Activity Feed" icon="📡" badge="● Live" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, maxHeight: 360, overflowY: 'auto' }} className="fd-scroll">
+            {data.liveActivity.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: C.textDim, fontSize: 13, fontWeight: 600 }}>
+                No recent activity. Run an evaluation to see live events.
+              </div>
+            ) : data.liveActivity.map((act, i) => {
+              const lineColor = { success: '#34d399', error: '#f87171', info: C.indigo, warning: C.amber }[act.type] || C.indigo;
               return (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: '#111111', borderRadius: 10, border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: '#6b7280' }}>{icon}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#d1d5db' }}>{label}</span>
+                <div key={act.id} style={{ display: 'flex', gap: 12, paddingLeft: 18, borderLeft: `2px solid ${lineColor}30`, marginLeft: 4, paddingTop: i > 0 ? 12 : 0, paddingBottom: 12, position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: -5, top: i > 0 ? 16 : 4, width: 8, height: 8, borderRadius: '50%', background: lineColor, boxShadow: `0 0 8px ${lineColor}60` }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: '#d1d5db', fontWeight: 500, lineHeight: 1.5 }}>{act.event}</div>
+                    <div style={{ fontSize: 9, color: C.textDim, fontFamily: 'monospace', marginTop: 3, display: 'flex', gap: 10 }}>
+                      <span>{act.time}</span>
+                      <span style={{ color: lineColor, fontWeight: 600 }}>{act.module}</span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: h.text, background: h.badge, border: `1px solid ${h.border}`, padding: '2px 7px', borderRadius: 5 }}>
-                    {h.label}
-                  </span>
                 </div>
               );
             })}
@@ -394,281 +694,132 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Lower Section: Platform + OCR + Keys ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Platform Stats */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <span style={styles.cardTitle}><Layers size={14} color="#818cf8" /> Platform Operations</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
-            {[
-              { label: 'Successful', value: data.platform.successfulEvaluations, color: '#34d399' },
-              { label: 'Failed', value: data.platform.failedEvaluations, color: '#f87171' },
-              { label: 'Active Today', value: data.platform.activeUsersToday ?? 0, color: '#818cf8' },
-              { label: 'Users Total', value: data.platform.totalUsers ?? 0, color: '#22d3ee' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ ...styles.miniStatCard, textAlign: 'center', padding: '16px 12px' }}>
-                <span style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{label}</span>
-                <span style={{ fontSize: 26, fontWeight: 800, color, letterSpacing: '-0.02em', display: 'block', marginTop: 4 }}>{value.toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>Success Rate</span>
-              <span style={{ fontSize: 12, color: '#34d399', fontWeight: 700 }}>
-                {data.platform.totalEvaluations > 0 ? Math.round((data.platform.successfulEvaluations / data.platform.totalEvaluations) * 100) : 100}%
-              </span>
-            </div>
-            <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${data.platform.totalEvaluations > 0 ? Math.round((data.platform.successfulEvaluations / data.platform.totalEvaluations) * 100) : 100}%`,
-                background: 'linear-gradient(90deg, #34d399, #22d3ee)',
-                borderRadius: 99,
-                transition: 'width 0.5s ease'
-              }} />
-            </div>
-          </div>
-        </div>
-
-        {/* OCR Engine Stats */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <span style={styles.cardTitle}><Binary size={14} color="#22d3ee" /> OCR Engine</span>
-            <span style={{ fontSize: 10, color: data.ocr.ocrQueueStatus === 'Idle' ? '#34d399' : '#fbbf24', fontWeight: 700, background: data.ocr.ocrQueueStatus === 'Idle' ? 'rgba(52,211,153,0.1)' : 'rgba(251,191,36,0.1)', padding: '2px 8px', borderRadius: 6, border: `1px solid ${data.ocr.ocrQueueStatus === 'Idle' ? 'rgba(52,211,153,0.25)' : 'rgba(251,191,36,0.25)'}` }}>
-              {data.ocr.ocrQueueStatus}
-            </span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            {[
-              { label: 'Gemini Today', value: data.ocr.geminiOcrRequestsToday, color: '#818cf8' },
-              { label: 'This Month', value: data.ocr.geminiOcrRequestsThisMonth, color: '#22d3ee' },
-              { label: 'Fallbacks', value: data.ocr.ocrSpaceFallbackCount, color: '#fb923c' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ ...styles.miniStatCard, textAlign: 'center' }}>
-                <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-                <span style={{ fontSize: 22, fontWeight: 800, color, display: 'block', marginTop: 4 }}>{value}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>Daily OCR Quota</span>
-                <span style={{ fontSize: 11, color: '#d1d5db', fontWeight: 600 }}>{data.freeTier.ocrUsedToday} / {data.freeTier.ocrLimit}</span>
-              </div>
-              <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(data.freeTier.ocrUsedToday / data.freeTier.ocrLimit) * 100}%`, background: 'linear-gradient(90deg, #6366f1, #22d3ee)', borderRadius: 99, transition: 'width 0.5s ease' }} />
-              </div>
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>Monthly OCR Scale</span>
-                <span style={{ fontSize: 11, color: '#d1d5db', fontWeight: 600 }}>{data.freeTier.estimatedMonthlyUsage} / 15,000</span>
-              </div>
-              <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(data.freeTier.estimatedMonthlyUsage / 15000) * 100}%`, background: 'linear-gradient(90deg, #34d399, #22d3ee)', borderRadius: 99, transition: 'width 0.5s ease' }} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── API Key Pool ── */}
-      <div style={styles.card}>
-        <div style={styles.cardHeader}>
-          <span style={styles.cardTitle}><Key size={14} color="#fbbf24" /> Gemini API Key Pool</span>
-          <span style={{ fontSize: 10, color: '#a3a3a3', background: 'rgba(255,255,255,0.04)', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)', fontWeight: 600 }}>
-            {data.apiKeys.rotationStatus}
-          </span>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                {['Slot', 'Key (Masked)', 'Status', 'Requests Today', 'Remaining (Est)', 'Active'].map(h => (
-                  <th key={h} style={{ padding: '8px 16px', textAlign: h === 'Active' ? 'right' : h === 'Requests Today' || h === 'Remaining (Est)' ? 'center' : 'left', fontSize: 9, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.apiKeys.keys.map((key) => (
-                <tr key={key.slot} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: key.isActive ? 'rgba(99,102,241,0.03)' : 'transparent' }}
-                  className="hover-row">
-                  <td style={{ padding: '10px 16px', fontWeight: 700, color: '#e2e8f0' }}>{key.slot}</td>
-                  <td style={{ padding: '10px 16px', fontFamily: 'monospace', color: '#6b7280', fontSize: 11 }}>{key.masked}</td>
-                  <td style={{ padding: '10px 16px' }}>
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
-                      color: key.status === 'Healthy' ? '#34d399' : '#f87171',
-                      background: key.status === 'Healthy' ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)',
-                      border: `1px solid ${key.status === 'Healthy' ? 'rgba(52,211,153,0.25)' : 'rgba(248,113,113,0.25)'}`,
-                      padding: '2px 8px', borderRadius: 5
-                    }}>
-                      {key.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 600, color: '#d1d5db' }}>{key.todayRequests}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontFamily: 'monospace', color: '#6b7280' }}>{key.estimatedRemaining}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                    {key.isActive ? (
-                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.25)', padding: '2px 8px', borderRadius: 5 }}>
-                        ● Active
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 10, color: '#4b5563', fontFamily: 'monospace' }}>
-                        {key.lastUsedTime ? new Date(key.lastUsedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {data.apiKeys.keys.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: '32px 16px', textAlign: 'center', color: '#4b5563', fontSize: 13 }}>No API keys configured</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── Bottom: Errors + Activity ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Error Monitor */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <span style={styles.cardTitle}><AlertTriangle size={14} color="#f87171" /> Error Monitor</span>
-            {data.errors.recent.length > 0 && (
-              <span style={{ fontSize: 9, fontWeight: 700, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase' }}>
-                {data.errors.recent.length} Logged
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }} className="scroll-thin">
-            {data.errors.recent.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#374151' }}>
-                <CheckCircle size={28} color="#34d399" style={{ margin: '0 auto 8px', display: 'block' }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>No errors logged. System stable.</span>
-              </div>
-            ) : data.errors.recent.map((err, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '10px 12px', background: '#111111', borderRadius: 10, border: '1px solid rgba(255,255,255,0.04)', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 3 }}>{err.message}</div>
-                  <div style={{ fontSize: 10, color: '#4b5563', fontFamily: 'monospace' }}>{new Date(err.lastOccurred).toLocaleString()}</div>
-                </div>
-                <span style={{ fontSize: 9, fontWeight: 800, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', padding: '3px 7px', borderRadius: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {err.count}x
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Live Activity Feed */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <span style={styles.cardTitle}><Activity size={14} color="#818cf8" /> Live Activity</span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#818cf8', background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.25)', padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase' }}>
-              ● Live
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, maxHeight: 280, overflowY: 'auto' }} className="scroll-thin">
-            {data.liveActivity.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#4b5563', fontSize: 13, fontWeight: 600 }}>
-                No events flowing yet.
-              </div>
-            ) : data.liveActivity.map((act, i) => (
-              <div key={act.id} style={{ display: 'flex', gap: 12, paddingLeft: 16, borderLeft: `2px solid ${act.type === 'success' ? '#34d399' : act.type === 'error' ? '#f87171' : '#818cf8'}40`, marginLeft: 4, paddingTop: i > 0 ? 12 : 0, paddingBottom: 12, position: 'relative' }}>
-                <span style={{
-                  position: 'absolute', left: -5, top: i > 0 ? 16 : 4, width: 8, height: 8, borderRadius: '50%',
-                  background: act.type === 'success' ? '#34d399' : act.type === 'error' ? '#f87171' : '#818cf8',
-                  boxShadow: `0 0 6px ${act.type === 'success' ? '#34d399' : act.type === 'error' ? '#f87171' : '#818cf8'}80`
-                }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: '#d1d5db', fontWeight: 500, lineHeight: 1.5 }}>{act.event}</div>
-                  <div style={{ fontSize: 9, color: '#4b5563', fontFamily: 'monospace', marginTop: 3 }}>{act.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Cost Card ── */}
-      <div style={styles.card}>
-        <div style={styles.cardHeader}>
-          <span style={styles.cardTitle}><DollarSign size={14} color="#34d399" /> Cost Breakdown</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      {/* ── ROW 6: TODAY'S SUMMARY ───────────────────────── */}
+      <div className="fd-card" style={{ padding: '20px 24px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.12)' }}>
+        <SectionHeader title={`Today's Summary — ${now.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}`} icon="📅" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
           {[
-            { label: 'Cost Today', value: `$${data.cost.todayGeminiCost.toFixed(5)}`, color: '#34d399' },
-            { label: 'Monthly Cost', value: `$${data.cost.monthlyGeminiCost.toFixed(4)}`, color: '#22d3ee' },
-            { label: 'Avg / Eval', value: `$${data.cost.avgCostPerEval.toFixed(5)}`, color: '#818cf8' },
-            { label: 'Avg Tokens', value: data.cost.avgTokensPerEval.toLocaleString(), color: '#c084fc' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ ...styles.miniStatCard, textAlign: 'center', padding: '16px 12px' }}>
-              <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-              <span style={{ fontSize: 20, fontWeight: 800, color, display: 'block', marginTop: 6, fontFamily: 'monospace' }}>{value}</span>
+            { label: 'Evaluations', value: data.todaySummary.evaluations, color: C.indigo, icon: '📋' },
+            { label: 'OCR Requests', value: data.todaySummary.ocrRequests, color: C.cyan, icon: '🔍' },
+            { label: 'Success Rate', value: `${data.todaySummary.successRate}%`, color: '#34d399', icon: '✓' },
+            { label: "Today's Cost", value: `$${data.todaySummary.apiCost.toFixed(5)}`, color: C.emerald, icon: '💰' },
+            { label: 'Active Users', value: data.todaySummary.activeUsers, color: C.purple, icon: '👤' },
+            { label: 'Platform Status', value: data.todaySummary.platformHealth, color: healthPalette(data.todaySummary.platformHealth).text, icon: '💚' },
+          ].map(({ label, value, color, icon }) => (
+            <div key={label} style={{ textAlign: 'center', padding: '14px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
+              <div style={{ fontSize: 9, color: C.textDim, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color, letterSpacing: '-0.02em' }}>{value}</div>
             </div>
           ))}
         </div>
       </div>
-    </div>
-  );
-}
 
-function KpiCard({ label, value, sub, icon, accentColor, trend, miniData }: {
-  label: string; value: string; sub: string; icon: React.ReactNode;
-  accentColor: string; trend: number | null; miniData: number[];
-}) {
-  return (
-    <div style={{ ...styles.card, padding: '20px 20px 16px' }} className="hover-lift">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
-        <div style={{ padding: 8, background: `${accentColor}15`, border: `1px solid ${accentColor}25`, borderRadius: 10, color: accentColor }}>
-          {icon}
-        </div>
+      {/* ── FOOTER META ─────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
+        <span style={{ fontSize: 10, color: C.textDim }}>
+          Write2Rank Founder Operations Center · Data points: {data.meta.dataPoints.userLogs} usage logs, {data.meta.dataPoints.geminiLogs} Gemini calls
+        </span>
+        <span style={{ fontSize: 10, color: C.textDim, fontFamily: 'monospace' }}>
+          Generated {new Date(data.meta.generatedAt).toLocaleTimeString()}
+        </span>
       </div>
-      <div style={{ fontSize: 30, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 6 }}>{value}</div>
-      <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500, marginBottom: 12 }}>{sub}</div>
-      <MiniChart data={miniData} color={accentColor} maxVal={1} />
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  page: { padding: '28px 32px', maxWidth: 1600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, color: '#f1f5f9' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, paddingBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.06)' },
-  pageTitle: { fontSize: 26, fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.025em', marginBottom: 4 },
-  pageSubtitle: { fontSize: 13, color: '#6b7280', fontWeight: 500 },
-  grid4: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 },
-  card: { background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.04)' },
-  cardTitle: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em' },
-  chipPurple: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', padding: '3px 10px', borderRadius: 99, textTransform: 'uppercase', letterSpacing: '0.06em' },
-  chipSmall: { fontSize: 9, fontWeight: 700, color: '#6b7280', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 5, textTransform: 'uppercase', letterSpacing: '0.06em' },
-  liveChip: { display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 12px', borderRadius: 99 },
-  dot: { width: 7, height: 7, borderRadius: '50%', display: 'inline-block', flexShrink: 0 },
-  miniStatCard: { background: '#111111', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: '12px', display: 'flex', flexDirection: 'column', gap: 4 },
-  skeleton: { background: 'rgba(255,255,255,0.04)', borderRadius: 8, animation: 'skeletonPulse 1.5s ease-in-out infinite' },
-  btnPrimary: { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  btnSecondary: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#111111', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: 'pointer' },
-};
+// ─────────────────────────────────────────────────────────────
+// GLOBAL CSS
+// ─────────────────────────────────────────────────────────────
+const CSS_STR = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 
-const cssStr = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-  * { box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
-  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes pulseGlow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  @keyframes skeletonPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; } }
-  .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-  .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
-  .hover-row { transition: background 0.15s ease; }
-  .hover-row:hover { background: rgba(255,255,255,0.02) !important; }
-  .scroll-thin::-webkit-scrollbar { width: 4px; }
-  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
-  .scroll-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+  .fd-card {
+    background: #0d1117;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+  }
+  .fd-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: default;
+  }
+  .fd-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    border-color: rgba(255,255,255,0.12);
+  }
+  .fd-chip-purple {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #a78bfa;
+    background: rgba(167,139,250,0.1);
+    border: 1px solid rgba(167,139,250,0.25);
+    padding: 3px 10px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .fd-live-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #a78bfa;
+    display: inline-block;
+    animation: fd-pulse 2s infinite ease-in-out;
+  }
+  .fd-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .fd-btn-primary:hover { opacity: 0.85; }
+  .fd-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #0d1117;
+    color: #94a3b8;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .fd-btn-secondary:hover { border-color: rgba(255,255,255,0.18); color: #f1f5f9; }
+  .fd-btn-secondary:disabled { cursor: not-allowed; }
+  .fd-skeleton {
+    background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
+    background-size: 200% 100%;
+    animation: fd-shimmer 1.8s ease-in-out infinite;
+    border-radius: 16px;
+  }
+  .fd-table-row { transition: background 0.12s ease; }
+  .fd-table-row:hover { background: rgba(255,255,255,0.02) !important; }
+  .fd-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+  .fd-scroll::-webkit-scrollbar-track { background: transparent; }
+  .fd-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+
+  @keyframes fd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes fd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes fd-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 `;

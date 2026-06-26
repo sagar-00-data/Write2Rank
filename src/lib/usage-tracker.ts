@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabaseServer } from './supabase-server';
 
 export interface UserUsageLogData {
   user_id: string;
@@ -11,6 +11,7 @@ export interface UserUsageLogData {
   evaluation_time_ms: number;
   total_time_ms: number;
   status: string;
+  error_message?: string;
 }
 
 export interface GeminiUsageLogData {
@@ -20,14 +21,16 @@ export interface GeminiUsageLogData {
   total_tokens: number;
   api_key_used: string;
   latency_ms: number;
+  is_429?: boolean;
+  rotation_count?: number;
 }
 
 /**
- * Logs an evaluation usage event to Supabase.
+ * Logs an evaluation usage event to Supabase using the server client (bypasses RLS).
  */
 export async function logUserUsage(data: UserUsageLogData) {
   try {
-    const { error } = await supabase.from('user_usage_logs').insert([
+    const { error } = await supabaseServer.from('user_usage_logs').insert([
       {
         user_id: data.user_id || '00000000-0000-0000-0000-000000000000',
         subject: data.subject,
@@ -39,6 +42,7 @@ export async function logUserUsage(data: UserUsageLogData) {
         evaluation_time_ms: data.evaluation_time_ms,
         total_time_ms: data.total_time_ms,
         status: data.status,
+        error_message: data.error_message || null,
       },
     ]);
     if (error) {
@@ -52,21 +56,21 @@ export async function logUserUsage(data: UserUsageLogData) {
 }
 
 /**
- * Logs a Gemini generation request call metrics to Supabase.
+ * Logs a Gemini generation request call metrics to Supabase using server client.
  */
 export async function logGeminiUsage(data: GeminiUsageLogData) {
   try {
-    // Gemini 3.5 Flash Cost Model: Input $0.075 / 1M tokens, Output $0.30 / 1M tokens
-    const inputCost = (data.input_tokens / 1000000) * 0.075;
-    const outputCost = (data.output_tokens / 1000000) * 0.30;
-    const estimatedCost = parseFloat((inputCost + outputCost).toFixed(6));
+    // Gemini 2.5 Flash Cost Model: Input $0.075/1M tokens, Output $0.30/1M tokens
+    const inputCost = (data.input_tokens / 1_000_000) * 0.075;
+    const outputCost = (data.output_tokens / 1_000_000) * 0.30;
+    const estimatedCost = parseFloat((inputCost + outputCost).toFixed(8));
 
     // Mask key for security
     const maskedKey = data.api_key_used
       ? data.api_key_used.substring(0, 6) + '...' + data.api_key_used.substring(data.api_key_used.length - 4)
-      : '';
+      : 'unknown';
 
-    const { error } = await supabase.from('gemini_usage_logs').insert([
+    const { error } = await supabaseServer.from('gemini_usage_logs').insert([
       {
         model_name: data.model_name,
         input_tokens: data.input_tokens,
@@ -75,6 +79,8 @@ export async function logGeminiUsage(data: GeminiUsageLogData) {
         estimated_cost: estimatedCost,
         api_key_used: maskedKey,
         latency_ms: data.latency_ms,
+        is_429: data.is_429 || false,
+        rotation_count: data.rotation_count || 0,
       },
     ]);
     if (error) {
@@ -96,48 +102,48 @@ export async function checkUserLimits(userId: string): Promise<{ allowed: boolea
   const targetUserId = userId || '00000000-0000-0000-0000-000000000000';
 
   const now = new Date();
-  
-  // Start of calendar day (UTC)
+
   const startOfDay = new Date(now);
   startOfDay.setUTCHours(0, 0, 0, 0);
 
-  // Start of calendar month (UTC)
   const startOfMonth = new Date(now);
   startOfMonth.setUTCDate(1);
   startOfMonth.setUTCHours(0, 0, 0, 0);
 
-  // Daily quota check
-  const { count: dailyCount, error: dailyError } = await supabase
-    .from('user_usage_logs')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', targetUserId)
-    .eq('status', 'success')
-    .gte('timestamp', startOfDay.toISOString());
+  try {
+    const { count: dailyCount, error: dailyError } = await supabaseServer
+      .from('user_usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', targetUserId)
+      .eq('status', 'success')
+      .gte('timestamp', startOfDay.toISOString());
 
-  if (dailyError) {
-    console.error('⚠️ [Usage Tracker] Error querying daily limits:', dailyError);
-  } else if (dailyCount !== null && dailyCount >= 2) {
-    return {
-      allowed: false,
-      reason: 'You have reached your daily beta evaluation limit (2/day).',
-    };
-  }
+    if (dailyError) {
+      console.error('⚠️ [Usage Tracker] Error querying daily limits:', dailyError);
+    } else if (dailyCount !== null && dailyCount >= 2) {
+      return {
+        allowed: false,
+        reason: 'You have reached your daily beta evaluation limit (2/day).',
+      };
+    }
 
-  // Monthly quota check
-  const { count: monthlyCount, error: monthlyError } = await supabase
-    .from('user_usage_logs')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', targetUserId)
-    .eq('status', 'success')
-    .gte('timestamp', startOfMonth.toISOString());
+    const { count: monthlyCount, error: monthlyError } = await supabaseServer
+      .from('user_usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', targetUserId)
+      .eq('status', 'success')
+      .gte('timestamp', startOfMonth.toISOString());
 
-  if (monthlyError) {
-    console.error('⚠️ [Usage Tracker] Error querying monthly limits:', monthlyError);
-  } else if (monthlyCount !== null && monthlyCount >= 50) {
-    return {
-      allowed: false,
-      reason: 'You have reached your monthly beta evaluation limit (50/month).',
-    };
+    if (monthlyError) {
+      console.error('⚠️ [Usage Tracker] Error querying monthly limits:', monthlyError);
+    } else if (monthlyCount !== null && monthlyCount >= 50) {
+      return {
+        allowed: false,
+        reason: 'You have reached your monthly beta evaluation limit (50/month).',
+      };
+    }
+  } catch (err) {
+    console.error('❌ [Usage Tracker] Limit check failed:', err);
   }
 
   return { allowed: true };
