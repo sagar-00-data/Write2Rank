@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Lock, AlertCircle, ArrowRight, Activity } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
@@ -39,69 +40,79 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6 text-gray-100 font-sans">
-      <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl shadow-xl p-8 relative overflow-hidden">
-        {/* Subtle decorative gradient background */}
-        <div className="absolute -top-16 -right-16 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-zinc-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+      {/* Background glow effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-indigo-600/10 rounded-[100%] blur-[120px] opacity-60" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[300px] bg-blue-600/10 rounded-[100%] blur-[100px] opacity-40 mix-blend-screen" />
+      </div>
 
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="p-3 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl text-indigo-400 mb-4 shadow-inner">
-            <ShieldCheck className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Founder Admin</h1>
-          <p className="text-gray-400 text-sm mt-2">
-            This is an internal dashboard. Password verification is performed securely on the server.
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-6 bg-red-950/40 border border-red-900/50 p-4 rounded-xl flex items-start gap-3 text-red-300">
-            <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
-            <div className="text-xs font-medium leading-relaxed">{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
-              Enter Administrator Password
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
-                <Lock className="h-4 w-4" />
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                disabled={loading}
-                className="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl py-3 pl-11 pr-4 outline-none transition text-sm font-mono placeholder-gray-700"
-              />
+      <div className="w-full max-w-[420px] relative z-10">
+        
+        {/* Logo / Header area */}
+        <div className="flex flex-col items-center text-center mb-10 space-y-4">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-indigo-500/20 rounded-2xl blur-xl group-hover:bg-indigo-500/30 transition duration-500" />
+            <div className="relative p-3.5 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl flex items-center justify-center">
+              <Activity className="h-7 w-7 text-indigo-400" />
             </div>
           </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-white tracking-tight">Founder Operations</h1>
+            <p className="text-zinc-500 text-sm mt-1.5 font-medium">Internal Command Center</p>
+          </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white font-semibold rounded-xl text-sm transition duration-200 shadow-lg shadow-indigo-900/20"
-          >
-            {loading ? 'Verifying Session...' : 'Access Dashboard'}
-            {!loading && <ArrowRight className="h-4 w-4" />}
-          </button>
-        </form>
+        {/* Login Box */}
+        <div className="bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/5 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] p-8">
+          
+          {error && (
+            <div className="mb-6 bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm font-medium text-red-200/90 leading-relaxed">{error}</div>
+            </div>
+          )}
 
-        <div className="mt-8 pt-6 border-t border-gray-800/60 text-center">
-          <Link href="/" className="text-xs text-gray-500 hover:text-indigo-400 transition font-medium">
-            ← Return to public website
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2.5">
+              <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest ml-1">
+                Security Passkey
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Lock className="h-4 w-4" />
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={loading}
+                  className="w-full bg-[#111111] border border-white/10 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 text-white rounded-xl py-3.5 pl-12 pr-4 outline-none transition-all text-sm font-mono placeholder-zinc-700 shadow-inner"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full relative group overflow-hidden bg-indigo-600 hover:bg-indigo-500 disabled:bg-[#1a1a1a] disabled:text-zinc-500 disabled:border-white/5 border border-transparent disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3.5 px-4 text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)]"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                {loading ? 'Authenticating...' : 'Secure Access'}
+                {!loading && <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />}
+              </span>
+            </button>
+          </form>
+        </div>
+
+        <div className="mt-8 text-center flex justify-center">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-medium px-4 py-2 rounded-full hover:bg-white/5">
+            ← Return to public platform
           </Link>
         </div>
       </div>
     </div>
   );
 }
-
-// Minimal stub for inline client Link support
-import Link from 'next/link';
