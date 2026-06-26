@@ -102,50 +102,16 @@ export async function POST(request: Request) {
     // Try Gemini Vision as Primary OCR Engine
     try {
       console.log('🌐 Calling Gemini Vision (Primary) for text extraction...');
-      let result;
-      try {
-        result = await callModelWithRotation(async (ai) => {
-          return await ai.models.generateContent({
-            model: 'gemini-3.5-flash',
-            contents: ocrContents,
-            config: {
-              thinking_level: 'minimal',
-              thinkingLevel: 'minimal'
-            } as any
-          });
+      const result = await callModelWithRotation(async (ai) => {
+        return await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: ocrContents,
+          config: {
+            thinking_level: 'minimal',
+            thinkingLevel: 'minimal'
+          } as any
         });
-      } catch (modelError: any) {
-        const errorMsg = modelError.message || '';
-        const statusCode = String(modelError.status || modelError.statusCode || '');
-        const isUnavailable = 
-          errorMsg.includes('503') || 
-          errorMsg.includes('UNAVAILABLE') || 
-          errorMsg.includes('high demand') ||
-          errorMsg.includes('429') ||
-          errorMsg.includes('quota') ||
-          errorMsg.includes('RESOURCE_EXHAUSTED') ||
-          statusCode.includes('503') ||
-          statusCode.includes('UNAVAILABLE') ||
-          statusCode.includes('high demand') ||
-          statusCode.includes('429') ||
-          statusCode.includes('RESOURCE_EXHAUSTED');
-
-        if (isUnavailable) {
-          console.warn("Gemini 3.5 Flash busy or key limit hit, trying Gemini 2.5 Flash as backup...");
-          result = await callModelWithRotation(async (ai) => {
-            return await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: ocrContents,
-              config: {
-                thinking_level: 'minimal',
-                thinkingLevel: 'minimal'
-              } as any
-            });
-          });
-        } else {
-          throw modelError;
-        }
-      }
+      });
 
       extractedText = result.text || '';
       if (extractedText.trim()) {

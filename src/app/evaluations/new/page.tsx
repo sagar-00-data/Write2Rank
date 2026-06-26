@@ -119,10 +119,10 @@ export default function NewEvaluation() {
             let width = img.width;
             let height = img.height;
 
-            if (width > 2000) {
+            if (width > 1200) {
               const aspectRatio = height / width;
-              width = 2000;
-              height = Math.round(2000 * aspectRatio);
+              width = 1200;
+              height = Math.round(1200 * aspectRatio);
             }
 
             const canvas = document.createElement('canvas');
@@ -136,8 +136,8 @@ export default function NewEvaluation() {
 
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Export as JPEG at 80% quality
-            const base64DataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            // Export as JPEG at 70% quality (better size-to-quality ratio for fast OCR)
+            const base64DataUrl = canvas.toDataURL('image/jpeg', 0.7);
 
             const arr = base64DataUrl.split(',');
             const mime = arr[0].match(/:(.*?);/)![1];
@@ -172,13 +172,27 @@ export default function NewEvaluation() {
       body: formData,
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get("content-type");
+    const isJson = contentType && contentType.includes("application/json");
 
     if (!response.ok) {
-      throw new Error(data.error || 'OCR API failed');
+      let errorMsg = 'OCR API failed';
+      if (isJson) {
+        const data = await response.json();
+        errorMsg = data.error || errorMsg;
+      } else {
+        const text = await response.text();
+        errorMsg = text.substring(0, 150) || `Server error (${response.status})`;
+      }
+      throw new Error(errorMsg);
     }
 
-    return { text: data.extractedText, notice: data.notice };
+    if (isJson) {
+      const data = await response.json();
+      return { text: data.extractedText, notice: data.notice };
+    } else {
+      throw new Error("OCR API returned invalid non-JSON response.");
+    }
   };
 
   const handleExtractOCR = async () => {
@@ -243,11 +257,22 @@ export default function NewEvaluation() {
         body: JSON.stringify({ text: extractedAnswer }),
       });
 
-      if (response.ok) {
+      const contentType = response.headers.get("content-type");
+      const isJson = contentType && contentType.includes("application/json");
+
+      if (response.ok && isJson) {
         const data = await response.json();
         setExtractedAnswer(data.improvedText);
       } else {
-        alert("Failed to improve text.");
+        let errorMsg = "Failed to improve text.";
+        if (isJson) {
+          const data = await response.json();
+          errorMsg = data.error || errorMsg;
+        } else {
+          const text = await response.text();
+          errorMsg = text.substring(0, 150) || `Server error (${response.status})`;
+        }
+        alert(errorMsg);
       }
     } catch (error) {
       console.error(error);
@@ -279,9 +304,24 @@ export default function NewEvaluation() {
           }),
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
 
-        if (response.ok) {
+        if (!response.ok) {
+          let errorMsg = 'Failed to evaluate the text.';
+          if (isJson) {
+            const data = await response.json();
+            errorMsg = data.error || errorMsg;
+          } else {
+            const text = await response.text();
+            errorMsg = text.substring(0, 150) || `Server error (${response.status})`;
+          }
+          alert(errorMsg);
+          return;
+        }
+
+        if (isJson) {
+          const data = await response.json();
           if (typeof window !== 'undefined') {
             const existingEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
             const newEval = {
@@ -295,7 +335,7 @@ export default function NewEvaluation() {
 
           router.push(`/evaluations/${data.id}`);
         } else {
-          alert(data.error || "Failed to evaluate the text.");
+          alert("Server returned invalid non-JSON evaluation response.");
         }
       } catch (error) {
         console.error(error);
