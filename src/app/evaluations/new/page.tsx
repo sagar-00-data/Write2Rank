@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Upload, File as FileIcon, X, ArrowRight, Loader, Edit3, HelpCircle, Sparkles, Wand2, Info, BookOpen } from 'lucide-react';
+import { Upload, File as FileIcon, X, ArrowRight, Loader, Edit3, HelpCircle, Sparkles, Wand2, Info, BookOpen, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
@@ -477,9 +477,36 @@ export default function NewEvaluation() {
           <h1 className="page-title responsive-title" style={{ marginBottom: '8px' }}>New Evaluation</h1>
           <p style={{ color: '#64748b', fontSize: '15px' }}>Powered by Gemini Vision for High-Accuracy Handwriting Recognition.</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ padding: '8px 16px', borderRadius: '20px', backgroundColor: step === 1 ? '#2563eb' : '#f1f5f9', color: step === 1 ? 'white' : '#64748b', fontSize: '12px', fontWeight: 600, border: '1px solid #e2e8f0' }}>1. UPLOAD</div>
           <div style={{ padding: '8px 16px', borderRadius: '20px', backgroundColor: step === 2 ? '#2563eb' : '#f1f5f9', color: step === 2 ? 'white' : '#64748b', fontSize: '12px', fontWeight: 600, border: '1px solid #e2e8f0' }}>2. REVIEW & EDIT</div>
+          <button
+            onClick={() => {
+              // Reset all state for a fresh evaluation
+              window.location.reload();
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 18px',
+              borderRadius: '20px',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              letterSpacing: '0.3px',
+              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.25)',
+              transition: 'background-color 0.2s, transform 0.1s',
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#2563eb'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            title="Start a fresh new evaluation"
+          >
+            <Plus size={13} /> New Evaluation
+          </button>
         </div>
       </div>
 
@@ -727,6 +754,45 @@ export default function NewEvaluation() {
 
             return (
               <div className="animate-fade-in" style={{ marginTop: '36px' }}>
+                {/* New Evaluation CTA — shown above results */}
+                {!isStreaming && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    marginBottom: '16px',
+                  }}>
+                    <button
+                      onClick={() => window.location.reload()}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '12px 24px',
+                        borderRadius: '12px',
+                        backgroundColor: '#2563eb',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(37, 99, 235, 0.30)',
+                        transition: 'background-color 0.2s, transform 0.15s, box-shadow 0.2s',
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = '#1d4ed8';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.35)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = '#2563eb';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.30)';
+                      }}
+                    >
+                      <Plus size={16} /> New Evaluation
+                    </button>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Sparkles size={18} color="#2563eb" className={isStreaming ? "animate-pulse" : ""} />
