@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 // Safe query helper — never throws, returns empty array on any failure
 async function safeQuery<T>(fn: () => Promise<{ data: T | null; error: any }>): Promise<T> {
   try {
