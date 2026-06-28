@@ -40,20 +40,20 @@ interface StatsData {
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────
 const C = {
-  bg: '#080b12',
-  card: '#0d1117',
-  border: 'rgba(255,255,255,0.07)',
-  borderLight: 'rgba(255,255,255,0.04)',
-  blue: '#3b82f6',
-  indigo: '#6366f1',
-  purple: '#a855f7',
-  emerald: '#10b981',
-  amber: '#f59e0b',
-  red: '#ef4444',
-  cyan: '#06b6d4',
-  text: '#f1f5f9',
+  bg: '#06080c',
+  card: '#090d16',
+  border: 'rgba(255,255,255,0.05)',
+  borderLight: 'rgba(255,255,255,0.025)',
+  blue: '#2563eb',
+  indigo: '#4f46e5',
+  purple: '#8b5cf6',
+  emerald: '#059669',
+  amber: '#d97706',
+  red: '#dc2626',
+  cyan: '#0891b2',
+  text: '#f8fafc',
   textMuted: '#94a3b8',
-  textDim: '#475569',
+  textDim: '#64748b',
 };
 
 const healthPalette = (s: string) => {
@@ -746,90 +746,107 @@ export default function FounderOperationsCenter() {
 const CSS_STR = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   * { box-sizing: border-box; }
-  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #06080c; color: #f8fafc; }
 
   .fd-card {
-    background: #0d1117;
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 16px;
+    background: linear-gradient(180deg, #090d16 0%, #070a10 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .fd-hover {
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: default;
   }
   .fd-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-    border-color: rgba(255,255,255,0.12);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   }
   .fd-chip-purple {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
-    color: #a78bfa;
-    background: rgba(167,139,250,0.1);
-    border: 1px solid rgba(167,139,250,0.25);
+    color: #c084fc;
+    background: rgba(192, 132, 252, 0.08);
+    border: 1px solid rgba(192, 132, 252, 0.2);
     padding: 3px 10px;
     border-radius: 99px;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
   .fd-live-dot {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: #a78bfa;
+    background: #c084fc;
     display: inline-block;
     animation: fd-pulse 2s infinite ease-in-out;
+    box-shadow: 0 0 8px #c084fc;
   }
   .fd-btn-primary {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    background: #6366f1;
-    color: #fff;
-    border: none;
+    padding: 9px 18px;
+    background: #4f46e5;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
-  .fd-btn-primary:hover { opacity: 0.85; }
+  .fd-btn-primary:hover {
+    background-color: #4338ca;
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  }
   .fd-btn-secondary {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background: #0d1117;
+    background: #090d16;
     color: #94a3b8;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 10px;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
+    transition: border-color 0.2s, color 0.2s, background-color 0.2s;
     font-family: inherit;
   }
-  .fd-btn-secondary:hover { border-color: rgba(255,255,255,0.18); color: #f1f5f9; }
-  .fd-btn-secondary:disabled { cursor: not-allowed; }
+  .fd-btn-secondary:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+    background-color: #0d1220;
+  }
+  .fd-btn-secondary:disabled { cursor: not-allowed; opacity: 0.5; }
   .fd-skeleton {
-    background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 25%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.02) 75%);
     background-size: 200% 100%;
     animation: fd-shimmer 1.8s ease-in-out infinite;
-    border-radius: 16px;
+    border-radius: 14px;
   }
-  .fd-table-row { transition: background 0.12s ease; }
-  .fd-table-row:hover { background: rgba(255,255,255,0.02) !important; }
-  .fd-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+  .fd-table-row {
+    transition: background-color 0.15s ease;
+  }
+  .fd-table-row:hover {
+    background-color: rgba(255, 255, 255, 0.015) !important;
+  }
+  .fd-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
   .fd-scroll::-webkit-scrollbar-track { background: transparent; }
-  .fd-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+  .fd-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 99px; }
+  .fd-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.12); }
 
   @keyframes fd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes fd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes fd-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.9); } }
   @keyframes fd-shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
