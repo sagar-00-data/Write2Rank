@@ -255,6 +255,7 @@ export default function FounderOperationsCenter() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
     timerRef.current = setInterval(() => { fetchData(true); setTick(t => t + 1); }, 30_000);
     const clockInterval = setInterval(() => setTick(t => t + 1), 1000);

@@ -98,53 +98,7 @@ export async function logGeminiUsage(data: GeminiUsageLogData) {
  * - Max 2 evaluations per day
  * - Max 50 evaluations per month
  */
-export async function checkUserLimits(userId: string): Promise<{ allowed: boolean; reason?: string }> {
-  const targetUserId = userId || '00000000-0000-0000-0000-000000000000';
-
-  const now = new Date();
-
-  const startOfDay = new Date(now);
-  startOfDay.setUTCHours(0, 0, 0, 0);
-
-  const startOfMonth = new Date(now);
-  startOfMonth.setUTCDate(1);
-  startOfMonth.setUTCHours(0, 0, 0, 0);
-
-  try {
-    const { count: dailyCount, error: dailyError } = await supabaseServer
-      .from('user_usage_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', targetUserId)
-      .eq('status', 'success')
-      .gte('timestamp', startOfDay.toISOString());
-
-    if (dailyError) {
-      console.error('⚠️ [Usage Tracker] Error querying daily limits:', dailyError);
-    } else if (dailyCount !== null && dailyCount >= 2) {
-      return {
-        allowed: false,
-        reason: 'You have reached your daily beta evaluation limit (2/day).',
-      };
-    }
-
-    const { count: monthlyCount, error: monthlyError } = await supabaseServer
-      .from('user_usage_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', targetUserId)
-      .eq('status', 'success')
-      .gte('timestamp', startOfMonth.toISOString());
-
-    if (monthlyError) {
-      console.error('⚠️ [Usage Tracker] Error querying monthly limits:', monthlyError);
-    } else if (monthlyCount !== null && monthlyCount >= 50) {
-      return {
-        allowed: false,
-        reason: 'You have reached your monthly beta evaluation limit (50/month).',
-      };
-    }
-  } catch (err) {
-    console.error('❌ [Usage Tracker] Limit check failed:', err);
-  }
-
+export async function checkUserLimits(_userId: string): Promise<{ allowed: boolean; reason?: string }> {
+  // Free Beta limit enforcement is disabled to allow unlimited evaluations.
   return { allowed: true };
 }
