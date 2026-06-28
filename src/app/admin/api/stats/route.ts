@@ -453,6 +453,7 @@ export async function GET() {
       },
       meta: {
         generatedAt: new Date().toISOString(),
+        hasServiceKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE),
         dataPoints: {
           userLogs: userLogs.length,
           geminiLogs: geminiLogs.length,

@@ -33,7 +33,7 @@ interface StatsData {
   insights: Insight[];
   rag: { chunksCount: number; documentsIndexed: string[]; };
   todaySummary: { evaluations: number; ocrRequests: number; successRate: number; apiCost: number; platformHealth: string; activeUsers: number; };
-  meta: { generatedAt: string; dataPoints: { userLogs: number; geminiLogs: number; }; };
+  meta: { generatedAt: string; hasServiceKey?: boolean; dataPoints: { userLogs: number; geminiLogs: number; }; };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -369,13 +369,24 @@ export default function FounderOperationsCenter() {
       </div>
 
       {/* ── DATA HEALTH WARNING ─────────────────────────── */}
-      {data.meta.dataPoints.userLogs === 0 && (
+      {!data.meta.hasServiceKey && (
+        <div className="fd-card" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: 12 }}>
+          <span style={{ fontSize: 18 }}>🚨</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171', marginBottom: 2 }}>Supabase Service Role Key is missing on the Server</div>
+            <div style={{ fontSize: 11, color: C.textMuted }}>
+              Please add <strong>SUPABASE_SERVICE_ROLE_KEY</strong> to your Vercel Environment Variables, then redeploy your Vercel project to apply the change. This key is required to bypass Row Level Security policies and fetch dashboard stats.
+            </div>
+          </div>
+        </div>
+      )}
+      {data.meta.hasServiceKey && data.meta.dataPoints.userLogs === 0 && (
         <div className="fd-card" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: 12 }}>
           <span style={{ fontSize: 18 }}>⚠️</span>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24', marginBottom: 2 }}>No telemetry data recorded yet</div>
             <div style={{ fontSize: 11, color: C.textMuted }}>
-              Run the SQL in <strong>supabase_admin_policies.sql</strong> in your Supabase SQL Editor, then add <strong>SUPABASE_SERVICE_ROLE_KEY</strong> to .env.local and restart the dev server. Run an evaluation to generate your first metrics.
+              The server connection is fully configured, but your database tables are empty. Run your first answer sheet evaluation through the application to generate telemetry metrics!
             </div>
           </div>
         </div>
