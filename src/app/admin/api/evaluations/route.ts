@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseServer } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     // Fetch evaluations and join with users table
-    const { data: evals, error } = await supabase
+    const { data: evals, error } = await supabaseServer
       .from('evaluations')
       .select(`
         id,

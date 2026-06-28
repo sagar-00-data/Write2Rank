@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseServer } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     // 1. Fetch Users
-    const { data: users, error: usersErr } = await supabase
+    const { data: users, error: usersErr } = await supabaseServer
       .from('users')
       .select('*')
       .order('created_at', { ascending: false });
@@ -14,7 +14,7 @@ export async function GET() {
     if (usersErr) throw usersErr;
 
     // 2. Fetch User Usage Logs
-    const { data: logs, error: logsErr } = await supabase
+    const { data: logs, error: logsErr } = await supabaseServer
       .from('user_usage_logs')
       .select('user_id, status, timestamp');
 
