@@ -56,27 +56,15 @@ async function processPdf(filePath: string): Promise<string> {
 }
 
 async function getEmbedding(text: string): Promise<number[]> {
-  const hfToken = process.env.HF_TOKEN || '';
-  const response = await fetch(
-    "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
-    {
-      headers: { 
-        'Content-Type': 'application/json',
-        ...(hfToken ? { Authorization: `Bearer ${hfToken}` } : {}) 
-      },
-      method: "POST",
-      body: JSON.stringify({ inputs: text }),
-    }
-  );
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Hugging Face API failed: ${response.status} - ${errorText}`);
+  const response = await ai.models.embedContent({
+    model: 'gemini-embedding-2',
+    contents: text,
+  });
+  const values = response.embeddings?.[0]?.values;
+  if (!values || values.length === 0) {
+    throw new Error('No embedding values returned from Gemini API');
   }
-  const result = await response.json();
-  if (!Array.isArray(result)) {
-    throw new Error(`Invalid response format from Hugging Face: ${JSON.stringify(result)}`);
-  }
-  return result;
+  return values;
 }
 
 async function main() {

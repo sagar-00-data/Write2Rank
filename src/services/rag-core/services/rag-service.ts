@@ -132,42 +132,31 @@ async function getQueryEmbedding(text: string): Promise<number[]> {
     return embeddingCache.get(cacheKey)!;
   }
 
-  const hfToken = process.env.HF_TOKEN || '';
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5 second timeout
+  const keys = apiKeys.length > 0 ? apiKeys : [process.env.GEMINI_API_KEY || ''];
+  const apiKey = keys[globalKeyIndex % keys.length] || '';
+  
+  if (!apiKey) {
+    throw new Error('No Gemini API key available for embedding');
+  }
 
+  const ai = new GoogleGenAI({ apiKey });
+  
   try {
-    const response = await fetch(
-      "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
-      {
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(hfToken ? { Authorization: `Bearer ${hfToken}` } : {}) 
-        },
-        method: "POST",
-        body: JSON.stringify({ 
-          inputs: text,
-          options: { wait_for_model: true, use_cache: true }
-        }),
-        signal: controller.signal
-      }
-    );
-    
-    clearTimeout(timeoutId);
+    console.log(`🧬 [RAG Service] Generating query embedding using gemini-embedding-2...`);
+    const response = await ai.models.embedContent({
+      model: 'gemini-embedding-2',
+      contents: cacheKey,
+    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Hugging Face embedding query failed: ${response.status} - ${errorText}`);
+    const values = response.embeddings?.[0]?.values;
+    if (!values || values.length === 0) {
+      throw new Error('Empty embedding returned from Gemini API');
     }
-    const result = await response.json();
-    if (!Array.isArray(result)) {
-      throw new Error(`Invalid response format from Hugging Face: ${JSON.stringify(result)}`);
-    }
-    
-    embeddingCache.set(cacheKey, result);
-    return result;
+
+    embeddingCache.set(cacheKey, values);
+    return values;
   } catch (error) {
-    clearTimeout(timeoutId);
+    console.error('❌ [RAG Service] Gemini embedding generation failed:', error);
     throw error;
   }
 }
