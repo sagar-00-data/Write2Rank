@@ -337,9 +337,7 @@ export async function runCorrectiveRag(
   }
 }
 
-function getGeminiKeys(): string[] {
-  return apiKeys;
-}
+
 
 // --- MODULAR PROMPT ARCHITECTURE FOR WRITE2RANK SCORING ENGINE ---
 

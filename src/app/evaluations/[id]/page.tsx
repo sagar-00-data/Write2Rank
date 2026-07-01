@@ -550,7 +550,12 @@ export default function EvaluationDetail() {
                   </div>
                 ))}
               </div>
-                  {/* 4. Executive Summary & Action Buttons */}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 4. Executive Summary & Action Buttons */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
         
         {/* Executive Summary Card */}

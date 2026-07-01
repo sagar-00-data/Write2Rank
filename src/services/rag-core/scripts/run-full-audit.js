@@ -267,18 +267,22 @@ async function runAudit() {
   console.log('----------------------------------------------------------');
   console.log('Running Test A (RAG Enabled)...');
   const startA = Date.now();
-  const resultA = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: [{ role: 'user', parts: [{ text: finalPrompt }] }]
+  const resultA = await callModelWithRotationLocal(async (aiClient) => {
+    return await aiClient.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: finalPrompt }] }]
+    });
   });
   console.log(`Test A Complete in ${Date.now() - startA} ms.`);
 
   console.log('\nRunning Test B (RAG Disabled)...');
   const startB = Date.now();
   const finalPromptNoRag = getEvaluationPrompt(sampleQuestion, sampleAnswer, "NO REFERENCED MATERIAL FOUND IN DATABASE. EVALUATE BASED ON STANDARD LAWS.");
-  const resultB = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: [{ role: 'user', parts: [{ text: finalPromptNoRag }] }]
+  const resultB = await callModelWithRotationLocal(async (aiClient) => {
+    return await aiClient.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: finalPromptNoRag }] }]
+    });
   });
   console.log(`Test B Complete in ${Date.now() - startB} ms.\n`);
 
