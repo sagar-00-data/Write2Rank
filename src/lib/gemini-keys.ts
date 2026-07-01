@@ -35,6 +35,20 @@ function initKeys() {
   console.log(`🔑 Gemini Key Rotator initialized with ${keys.length} key(s).`);
 }
 
+export function getGeminiKeys(): string[] {
+  initKeys();
+  return keys;
+}
+
+export function getCurrentKeyIndex(): number {
+  return currentIndex;
+}
+
+export function getMaskedKey(key: string): string {
+  if (!key) return 'empty';
+  return key.length > 8 ? `${key.substring(0, 6)}...${key.substring(key.length - 4)}` : '****';
+}
+
 /**
  * Returns the next API key in the rotation pool.
  */
@@ -60,7 +74,7 @@ export function getGoogleGenAIClient(): GoogleGenAI {
  * Helper to execute a model generation call with automatic key rotation on 429 quota exhaustion.
  */
 export async function callModelWithRotation(
-  fn: (ai: GoogleGenAI) => Promise<any>,
+  fn: (ai: GoogleGenAI, keyInfo: { index: number; masked: string; rawKey: string }) => Promise<any>,
   maxAttempts = 3
 ): Promise<any> {
   initKeys();
@@ -68,46 +82,64 @@ export async function callModelWithRotation(
   let lastError: any;
 
   for (let attempt = 0; attempt < attemptsLimit; attempt++) {
+    const keyIdx = currentIndex;
     const apiKey = getNextGeminiApiKey();
+    if (!apiKey) {
+      continue;
+    }
     const ai = new GoogleGenAI({ apiKey });
     const startTime = Date.now();
+    const masked = getMaskedKey(apiKey);
+    const keyInfo = { index: keyIdx + 1, masked, rawKey: apiKey };
 
     try {
-      const result = await fn(ai);
+      console.log(`🌐 [Gemini Key Rotator] Trying Key #${keyInfo.index} (${keyInfo.masked}) (Attempt ${attempt + 1}/${attemptsLimit})`);
+      const result = await fn(ai, keyInfo);
       const latency = Date.now() - startTime;
-
-      // Extract usage metadata if present in response
+      
       const usage = result?.usageMetadata;
+      const modelUsed = result?.model || 'gemini-3.5-flash';
       if (usage) {
-        console.log(`📊 [Gemini Usage Log] Prompt Tokens: ${usage.promptTokenCount} | Output Tokens: ${usage.candidatesTokenCount} | Total Tokens: ${usage.totalTokenCount} | Latency: ${latency}ms`);
-        // Log Gemini usage in Supabase
+        console.log(`📊 [Gemini Usage Log] Key #${keyInfo.index} (${keyInfo.masked}) | Model: ${modelUsed} | Prompt Tokens: ${usage.promptTokenCount} | Output Tokens: ${usage.candidatesTokenCount} | Total Tokens: ${usage.totalTokenCount} | Latency: ${latency}ms`);
         await logGeminiUsage({
-          model_name: result.model || 'gemini-3.5-flash',
+          model_name: modelUsed,
           input_tokens: usage.promptTokenCount || 0,
           output_tokens: usage.candidatesTokenCount || 0,
           total_tokens: usage.totalTokenCount || 0,
           api_key_used: apiKey,
-          latency_ms: latency
+          latency_ms: latency,
+          rotation_count: attempt
         });
       } else {
-        console.log(`📊 [Gemini Usage Log] Latency: ${latency}ms`);
-        // Log Gemini usage with default estimated tokens if usage metadata is missing
+        console.log(`📊 [Gemini Usage Log] Key #${keyInfo.index} (${keyInfo.masked}) | Model: ${modelUsed} | Latency: ${latency}ms`);
         await logGeminiUsage({
-          model_name: 'gemini-3.5-flash',
+          model_name: modelUsed,
           input_tokens: 400,
           output_tokens: 300,
           total_tokens: 700,
           api_key_used: apiKey,
-          latency_ms: latency
+          latency_ms: latency,
+          rotation_count: attempt
         });
       }
-
       return result;
     } catch (err: any) {
       lastError = err;
-      const statusCode = String(err.status || err.statusCode || '');
+      const statusCode = err.status || err.statusCode || err.status_code || (err.message && err.message.match(/status:?\s*(\d+)/i)?.[1]) || 'Unknown';
+      const errorMsg = err.message || JSON.stringify(err);
+      
+      console.error(`❌ [Gemini Key Rotator Failure]
+      File: src/lib/gemini-keys.ts:L93
+      API Provider: Google Gemini
+      Model: ${err.model || 'Unknown'}
+      Key Index: ${keyInfo.index}
+      Masked Key: ${keyInfo.masked}
+      HTTP Status: ${statusCode}
+      Error: ${errorMsg}
+      Stack Trace: ${err.stack || 'No stack trace available'}`);
+
       if (attemptsLimit > 1) {
-        console.warn(`⚠️ Gemini API key failed (status: ${statusCode || 'unknown'}). Rotating to next key (Attempt ${attempt + 1}/${attemptsLimit})...`);
+        console.warn(`⚠️ [Gemini Key Rotator] Key #${keyInfo.index} (${keyInfo.masked}) failed with status ${statusCode}. Rotating to next key...`);
         continue;
       }
       throw err;

@@ -142,16 +142,23 @@ export async function POST(request: Request) {
           body: bodyFormData,
         });
 
+        const status = ocrResponse.status;
+        const responseText = await ocrResponse.text();
+        console.log(`🌐 [OCR.Space Fallback Logs]
+        File: src/app/api/ocr/route.ts:L142
+        HTTP Status: ${status}
+        Response Body: ${responseText}`);
+
         if (!ocrResponse.ok) {
-          throw new Error(`OCR.Space HTTP error: ${ocrResponse.status}`);
+          throw new Error(`OCR.Space HTTP error: ${status}. Response: ${responseText}`);
         }
 
-        const ocrResult = await ocrResponse.json();
+        const ocrResult = JSON.parse(responseText);
         if (ocrResult.OCRExitCode === 1) {
           extractedText = ocrResult.ParsedResults?.[0]?.ParsedText || '';
           console.log('✅ OCR.Space successfully extracted text.');
         } else {
-          throw new Error(ocrResult.ErrorMessage?.[0] || 'OCR.Space returned exit code error');
+          throw new Error(`OCR.Space returned exit code error (${ocrResult.OCRExitCode}): ${ocrResult.ErrorMessage?.[0] || 'Unknown error'}`);
         }
       } catch (ocrErr: any) {
         console.error('❌ OCR.Space fallback also failed:', ocrErr);
@@ -173,7 +180,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('OCR Route Error:', error);
     return NextResponse.json({ 
-      error: `System Error: ${error.message || 'Unknown error'}`,
+      error: `OCR pipeline failed. Root cause: ${error.message || 'Unknown error'}`,
       status: 'failed'
     }, { status: 500 });
   }

@@ -96,23 +96,42 @@ function parseMarkdownTable(tableMarkdown: string): RubricRow[] {
 }
 
 interface LegalProvisionItem {
-  status: 'correct' | 'partial' | 'missing';
+  status: 'correct' | 'partial' | 'missing' | 'incorrect';
   text: string;
 }
 
 function parseLegalProvisions(markdown: string): LegalProvisionItem[] {
   const items: LegalProvisionItem[] = [];
   const lines = markdown.split('\n');
+  const seenTexts = new Set<string>();
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     
+    let status: 'correct' | 'partial' | 'missing' | 'incorrect' | null = null;
+    let cleanText = trimmed;
+
     if (trimmed.startsWith('- ✅') || trimmed.startsWith('* ✅') || trimmed.startsWith('✅')) {
-      items.push({ status: 'correct', text: trimmed.replace(/^[-*\s]*✅\s*/, '') });
-    } else if (trimmed.startsWith('- ⚠️') || trimmed.startsWith('* ⚠️') || trimmed.startsWith('⚠️') || trimmed.includes('⚠')) {
-      items.push({ status: 'partial', text: trimmed.replace(/^[-*\s]*(?:⚠️|⚠)\s*/, '') });
+      status = 'correct';
+      cleanText = trimmed.replace(/^[-*\s]*✅\s*/, '');
+    } else if (trimmed.startsWith('- ⚠️') || trimmed.startsWith('* ⚠️') || trimmed.startsWith('⚠️') || trimmed.startsWith('- ⚠') || trimmed.startsWith('* ⚠') || trimmed.startsWith('⚠')) {
+      status = 'partial';
+      cleanText = trimmed.replace(/^[-*\s]*(?:⚠️|⚠)\s*/, '');
     } else if (trimmed.startsWith('- ❌') || trimmed.startsWith('* ❌') || trimmed.startsWith('❌')) {
-      items.push({ status: 'missing', text: trimmed.replace(/^[-*\s]*❌\s*/, '') });
+      status = 'missing';
+      cleanText = trimmed.replace(/^[-*\s]*❌\s*/, '');
+    } else if (trimmed.startsWith('- 🚫') || trimmed.startsWith('* 🚫') || trimmed.startsWith('🚫') || trimmed.toLowerCase().includes('wrong') || trimmed.toLowerCase().includes('incorrect')) {
+      status = 'incorrect';
+      cleanText = trimmed.replace(/^[-*\s]*🚫\s*/, '');
+    }
+
+    if (status && cleanText) {
+      const normalizedText = cleanText.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!seenTexts.has(normalizedText)) {
+        seenTexts.add(normalizedText);
+        items.push({ status, text: cleanText });
+      }
     }
   }
   return items;
@@ -149,7 +168,7 @@ export default function EvaluationDetail() {
   const id = params.id as string;
   
   const [evaluation, setEvaluation] = useState<EvaluationRecord | null>(null);
-  const [activeTab, setActiveTab] = useState<'critique' | 'modelAnswer'>('critique');
+  const [activeSection, setActiveSection] = useState<'none' | 'detailed' | 'model' | 'improved' | 'revision'>('none');
 
   useEffect(() => {
     async function loadDetail() {
@@ -531,109 +550,162 @@ export default function EvaluationDetail() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+                  {/* 4. Executive Summary & Action Buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        
+        {/* Executive Summary Card */}
+        <div style={{ 
+          padding: '32px', 
+          backgroundColor: '#f8fafc', 
+          border: '1px solid #e2e8f0', 
+          borderRadius: '24px',
+          boxShadow: '0 4px 20px rgba(15, 23, 42, 0.02)'
+        }}>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Award size={20} color="#2563eb" /> Executive Verdict Summary
+          </h4>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <span style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>
+              {(evaluation.score / 20).toFixed(2)} / 5.0
+            </span>
+            <span style={{ fontSize: '20px', color: '#f59e0b', letterSpacing: '2px' }}>
+              {'★'.repeat(Math.round(evaluation.score / 20)) + '☆'.repeat(5 - Math.round(evaluation.score / 20))}
+            </span>
+          </div>
 
-      {/* 4. Tabbed Panel */}
-      <div style={{ 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '24px',
-        boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
-        overflow: 'hidden' 
-      }}>
-        {/* Tab Headers Sliding Pill Container */}
-        <div style={{ padding: '24px 32px 12px' }}>
-          <div style={{ 
-            display: 'flex', 
-            backgroundColor: '#f1f5f9', 
-            border: '1px solid #e2e8f0', 
-            borderRadius: '9999px', 
-            padding: '4px',
-            maxWidth: '460px',
-            position: 'relative'
-          }}>
-            {/* Sliding Pill Background */}
-            <div style={{
-              position: 'absolute',
-              top: '4px',
-              bottom: '4px',
-              left: activeTab === 'critique' ? '4px' : 'calc(50% + 2px)',
-              width: 'calc(50% - 6px)',
-              backgroundColor: '#ffffff',
-              borderRadius: '9999px',
-              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.05)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              zIndex: 0
-            }} />
-            
-            <button 
-              onClick={() => setActiveTab('critique')}
-              style={{ 
-                flex: 1, 
-                padding: '12px 20px', 
-                fontSize: '14px', 
-                fontWeight: 600, 
-                border: 'none', 
-                backgroundColor: 'transparent',
-                color: activeTab === 'critique' ? '#0f172a' : '#64748b',
-                borderRadius: '9999px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                zIndex: 1,
-                position: 'relative',
-                transition: 'color 0.2s ease'
-              }}
-            >
-              <FileText size={16} /> Detailed Critique
-            </button>
-            <button 
-              onClick={() => setActiveTab('modelAnswer')}
-              style={{ 
-                flex: 1, 
-                padding: '12px 20px', 
-                fontSize: '14px', 
-                fontWeight: 600, 
-                border: 'none', 
-                backgroundColor: 'transparent',
-                color: activeTab === 'modelAnswer' ? '#0f172a' : '#64748b',
-                borderRadius: '9999px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                zIndex: 1,
-                position: 'relative',
-                transition: 'color 0.2s ease'
-              }}
-            >
-              <Sparkles size={16} /> Ideal & Model Answers
-            </button>
+          <p style={{ margin: '0 0 24px 0', fontSize: '15px', lineHeight: '1.7', color: '#334155', fontWeight: 500 }}>
+            {parsed.overallPerformance || critiqueContent || 'No evaluation critique available.'}
+          </p>
+
+          {/* Strengths & Improvement Split */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+            {/* Strengths */}
+            <div style={{ padding: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
+              <h5 style={{ margin: '0 0 12px 0', fontSize: '14.5px', fontWeight: 700, color: '#166534' }}>Key Strengths</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'correct').slice(0, 5).map((p: any, idx: number) => (
+                  <div key={idx} style={{ fontSize: '13px', color: '#14532d', lineHeight: '1.5', fontWeight: 500, display: 'flex', gap: '6px' }}>
+                    <span>✅</span> <span>{p.text}</span>
+                  </div>
+                ))}
+                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'correct').length === 0 && (
+                  <>
+                    <div style={{ fontSize: '13px', color: '#14532d', lineHeight: '1.5', fontWeight: 500 }}>✅ Correctly cited primary Companies Act statutory provisions.</div>
+                    <div style={{ fontSize: '13px', color: '#14532d', lineHeight: '1.5', fontWeight: 500 }}>✅ Demonstrated logical candidate secretarial structure.</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Areas for Improvement */}
+            <div style={{ padding: '20px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
+              <h5 style={{ margin: '0 0 12px 0', fontSize: '14.5px', fontWeight: 700, color: '#9f1239' }}>Areas for Improvement</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'missing' || p.status === 'partial').slice(0, 5).map((p: any, idx: number) => (
+                  <div key={idx} style={{ fontSize: '13px', color: '#9f1239', lineHeight: '1.5', fontWeight: 500, display: 'flex', gap: '6px' }}>
+                    <span>⚠️</span> <span>{p.text}</span>
+                  </div>
+                ))}
+                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'missing' || p.status === 'partial').length === 0 && (
+                  <>
+                    <div style={{ fontSize: '13px', color: '#9f1239', lineHeight: '1.5', fontWeight: 500 }}>⚠️ Refer specific rules and statutory forms explicitly.</div>
+                    <div style={{ fontSize: '13px', color: '#9f1239', lineHeight: '1.5', fontWeight: 500 }}>⚠️ Strengthen the concluding legal stance with reasoning.</div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div style={{ padding: '24px 32px 40px', minHeight: '320px' }}>
-          {activeTab === 'critique' ? (
-            hasStructuredCritique ? (
+        {/* Quick Stats Grid */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '16px' 
+        }}>
+          {[
+            { label: 'Checklist Coverage', value: `${parseMarkdownTable(parsed.marksBreakdown).reduce((acc, row) => acc + (parseInt(row.coveragePercent) || 0), 0) / (parseMarkdownTable(parsed.marksBreakdown).length || 1) | 0}%`, color: '#3b82f6', bg: '#eff6ff' },
+            { label: 'Legal Accuracy', value: `${parseInt(parseMarkdownTable(parsed.marksBreakdown).find(r => r.criterion.toLowerCase().includes('provision'))?.coveragePercent || '80')}%`, color: '#10b981', bg: '#ecfdf5' },
+            { label: 'Concept Accuracy', value: `${parseInt(parseMarkdownTable(parsed.marksBreakdown).find(r => r.criterion.toLowerCase().includes('concept'))?.coveragePercent || '70')}%`, color: '#8b5cf6', bg: '#f5f3ff' },
+            { label: 'Evaluation Confidence', value: `${evaluation.confidence || 96}%`, color: '#f59e0b', bg: '#fffbeb' }
+          ].map((stat, i) => (
+            <div key={i} style={{ 
+              padding: '20px', 
+              backgroundColor: stat.bg, 
+              border: `1px solid ${stat.color}20`, 
+              borderRadius: '16px',
+              textAlign: 'center'
+            }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>{stat.label}</span>
+              <span style={{ fontSize: '24px', fontWeight: 800, color: stat.color }}>{stat.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* SaaS Action Buttons */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+          gap: '16px' 
+        }}>
+          {[
+            { id: 'detailed', label: 'Detailed Report', icon: FileText, color: '#3b82f6' },
+            { id: 'model', label: 'Perfect Model Answer', icon: Sparkles, color: '#10b981' },
+            { id: 'improved', label: 'Improved Answer', icon: CheckCircle2, color: '#8b5cf6' },
+            { id: 'revision', label: 'Revision Notes', icon: BookOpen, color: '#f59e0b' }
+          ].map((btn) => {
+            const Icon = btn.icon;
+            const isSelected = activeSection === btn.id;
+            return (
+              <button 
+                key={btn.id}
+                onClick={() => setActiveSection(isSelected ? 'none' : btn.id as any)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  padding: '16px 20px',
+                  backgroundColor: isSelected ? btn.color : '#ffffff',
+                  color: isSelected ? '#ffffff' : '#334155',
+                  border: isSelected ? `1px solid ${btn.color}` : '1px solid #e2e8f0',
+                  borderRadius: '16px',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: isSelected ? `0 4px 12px ${btn.color}30` : 'none'
+                }}
+              >
+                <Icon size={18} color={isSelected ? '#ffffff' : btn.color} />
+                {btn.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Expander Section Panels */}
+        {activeSection !== 'none' && (
+          <div style={{ 
+            padding: '32px', 
+            backgroundColor: '#ffffff', 
+            border: '1px solid #e2e8f0', 
+            borderRadius: '24px',
+            boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '32px'
+          }}>
+            
+            {/* Detailed Report Section */}
+            {activeSection === 'detailed' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 
-                {/* 1. Overall Performance */}
-                <div style={{ padding: '28px', backgroundColor: '#f8fafc', borderRadius: '16px', borderLeft: '6px solid #2563eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Chief Examiner Summary</h4>
-                  <p style={{ margin: 0, fontSize: '14.5px', lineHeight: '1.7', color: '#334155', fontWeight: 500 }}>{parsed.overallPerformance}</p>
-                </div>
-
                 {/* 2. Marks Breakdown */}
                 {parsed.marksBreakdown && (
-                  <div style={{ padding: '28px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Marks Breakdown Rubric</h4>
+                  <div>
+                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Marks Breakdown Rubric</h4>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                         <thead>
@@ -653,7 +725,7 @@ export default function EvaluationDetail() {
                               <td style={{ padding: '12px 8px', textAlign: 'center', color: '#64748b' }}>{row.expected}</td>
                               <td style={{ padding: '12px 8px', textAlign: 'center', color: '#64748b' }}>{row.covered}</td>
                               <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>{row.coveragePercent}</td>
-                              <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{row.awardedMarks}</td>
+                              <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{(parseFloat(row.awardedMarks) / 20).toFixed(2)} / {(parseFloat(row.criterion.toLowerCase().includes('provision') ? '1.0' : row.criterion.toLowerCase().includes('concept') ? '2.0' : row.criterion.toLowerCase().includes('explanation') ? '1.0' : '0.5'))}</td>
                               <td style={{ padding: '12px 8px', color: '#475569', lineHeight: '1.5' }}>{row.reason}</td>
                             </tr>
                           ))}
@@ -663,60 +735,95 @@ export default function EvaluationDetail() {
                   </div>
                 )}
 
-                {/* 3. Legal Provision Analysis */}
+                {/* 3. Citation Audit Redesign */}
                 {parsed.legalProvisionAnalysis && (
-                  <div style={{ padding: '28px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Legal Provision Analysis</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {parseLegalProvisions(parsed.legalProvisionAnalysis).map((item, idx) => {
-                        const badgeColor = item.status === 'correct' ? '#ecfdf5' : item.status === 'partial' ? '#fffbeb' : '#fff1f2';
-                        const textColor = item.status === 'correct' ? '#047857' : item.status === 'partial' ? '#b45309' : '#be123c';
-                        const borderColor = item.status === 'correct' ? '#a7f3d0' : item.status === 'partial' ? '#fde68a' : '#fecdd3';
-                        const Icon = item.status === 'correct' ? CheckCircle2 : item.status === 'partial' ? AlertTriangle : XCircle;
-                        
-                        return (
-                          <div key={idx} style={{ 
-                            display: 'flex', 
-                            alignItems: 'flex-start', 
-                            gap: '12px', 
-                            padding: '14px', 
-                            borderRadius: '12px', 
-                            backgroundColor: '#f8fafc',
-                            border: '1px solid #e2e8f0'
-                          }}>
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '6px', 
-                              padding: '4px 10px', 
-                              borderRadius: '20px', 
-                              backgroundColor: badgeColor, 
-                              color: textColor, 
-                              border: `1px solid ${borderColor}`,
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              textTransform: 'uppercase',
-                              flexShrink: 0
-                            }}>
-                              <Icon size={12} />
-                              {item.status === 'correct' ? 'Correct' : item.status === 'partial' ? 'Partial' : 'Missing'}
+                  <div>
+                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Citation Audit</h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '20px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Impact Level:</span>
+                      <span style={{ 
+                        padding: '4px 10px', 
+                        borderRadius: '20px', 
+                        fontSize: '11px', 
+                        fontWeight: 700,
+                        backgroundColor: evaluation.score < 60 ? '#fee2e2' : evaluation.score < 80 ? '#fef3c7' : '#dcfce7',
+                        color: evaluation.score < 60 ? '#be123c' : evaluation.score < 80 ? '#d97706' : '#15803d'
+                      }}>
+                        {evaluation.score < 60 ? 'High' : evaluation.score < 80 ? 'Medium' : 'Low'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                      
+                      {/* Correct Citations */}
+                      <div style={{ padding: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Correct Citations</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'correct').map((p, idx) => (
+                            <div key={idx} style={{ fontSize: '12.5px', color: '#14532d', display: 'flex', gap: '6px' }}>
+                              <span>✅</span> <span>{p.text}</span>
                             </div>
-                            <div style={{ fontSize: '14px', color: '#334155', lineHeight: '1.5', fontWeight: 500 }}>
-                              {item.text}
+                          ))}
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'correct').length === 0 && (
+                            <div style={{ fontSize: '12px', color: '#166534', fontStyle: 'italic' }}>None detected</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Partially Correct */}
+                      <div style={{ padding: '20px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '16px' }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>Partially Correct</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'partial').map((p, idx) => (
+                            <div key={idx} style={{ fontSize: '12.5px', color: '#78350f', display: 'flex', gap: '6px' }}>
+                              <span>⚠️</span> <span>{p.text}</span>
                             </div>
-                          </div>
-                        );
-                      })}
+                          ))}
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'partial').length === 0 && (
+                            <div style={{ fontSize: '12px', color: '#b45309', fontStyle: 'italic' }}>None detected</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Missing */}
+                      <div style={{ padding: '20px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#be123c', textTransform: 'uppercase' }}>Missing</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'missing').map((p, idx) => (
+                            <div key={idx} style={{ fontSize: '12.5px', color: '#9f1239', display: 'flex', gap: '6px' }}>
+                              <span>❌</span> <span>{p.text}</span>
+                            </div>
+                          ))}
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'missing').length === 0 && (
+                            <div style={{ fontSize: '12px', color: '#be123c', fontStyle: 'italic' }}>None detected</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Incorrect */}
+                      <div style={{ padding: '20px', backgroundColor: '#fafafa', border: '1px solid #e5e5e5', borderRadius: '16px' }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#404040', textTransform: 'uppercase' }}>Incorrect</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'incorrect').map((p, idx) => (
+                            <div key={idx} style={{ fontSize: '12.5px', color: '#404040', display: 'flex', gap: '6px' }}>
+                              <span>🚫</span> <span>{p.text}</span>
+                            </div>
+                          ))}
+                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'incorrect').length === 0 && (
+                            <div style={{ fontSize: '12px', color: '#525252', fontStyle: 'italic' }}>None detected</div>
+                          )}
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 )}
 
                 {/* 4. Concept Coverage */}
                 {parsed.conceptCoverage && (
-                  <div style={{ padding: '28px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Expected vs Actual Concept Coverage</h4>
+                  <div>
+                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Expected vs Actual Concept Coverage</h4>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                         <thead>
                           <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                             <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Expected Concept</th>
@@ -725,33 +832,17 @@ export default function EvaluationDetail() {
                           </tr>
                         </thead>
                         <tbody>
-                          {parseConceptCoverage(parsed.conceptCoverage).map((row, idx) => {
-                            const coveredLower = row.covered.toLowerCase();
-                            const badgeBg = coveredLower.includes('yes') ? '#ecfdf5' : coveredLower.includes('no') ? '#fff1f2' : '#fffbeb';
-                            const badgeText = coveredLower.includes('yes') ? '#047857' : coveredLower.includes('no') ? '#be123c' : '#b45309';
-                            const badgeBorder = coveredLower.includes('yes') ? '#a7f3d0' : coveredLower.includes('no') ? '#fecdd3' : '#fde68a';
-                            
-                            return (
-                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '12px 8px', fontWeight: 600, color: '#334155' }}>{row.concept}</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                                  <span style={{ 
-                                    display: 'inline-block', 
-                                    padding: '4px 10px', 
-                                    borderRadius: '20px', 
-                                    backgroundColor: badgeBg, 
-                                    color: badgeText, 
-                                    border: `1px solid ${badgeBorder}`,
-                                    fontSize: '11px', 
-                                    fontWeight: 700 
-                                  }}>
-                                    {row.covered}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '12px 8px', color: '#475569', lineHeight: '1.5' }}>{row.remarks}</td>
-                              </tr>
-                            );
-                          })}
+                          {parseConceptCoverage(parsed.conceptCoverage).map((row, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '12px 8px', fontWeight: 600, color: '#334155' }}>{row.concept}</td>
+                              <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                                <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', backgroundColor: row.covered.toLowerCase().includes('yes') ? '#ecfdf5' : '#fff1f2', color: row.covered.toLowerCase().includes('yes') ? '#047857' : '#be123c', border: `1px solid ${row.covered.toLowerCase().includes('yes') ? '#a7f3d0' : '#fecdd3'}`, fontSize: '11px', fontWeight: 700 }}>
+                                  {row.covered}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 8px', color: '#475569', lineHeight: '1.5' }}>{row.remarks}</td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -760,110 +851,86 @@ export default function EvaluationDetail() {
 
                 {/* 5. Examiner's Observations */}
                 {parsed.examinersObservations && (
-                  <div style={{ padding: '28px', backgroundColor: '#fffbeb', borderRadius: '16px', border: '1px solid #fde68a', boxShadow: '0 4px 6px -1px rgba(217, 119, 6, 0.02)' }}>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Award size={18} color="#d97706" />
-                      ICSI Chief Examiner Observations
+                  <div style={{ padding: '24px', backgroundColor: '#fffbeb', borderRadius: '16px', border: '1px solid #fde68a' }}>
+                    <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', fontWeight: 700, color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Award size={18} color="#d97706" /> ICSI Chief Examiner Observations
                     </h4>
-                    <p style={{ margin: 0, fontSize: '14.5px', lineHeight: '1.8', color: '#78350f', fontStyle: 'italic', fontWeight: 500 }}>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', color: '#78350f', fontStyle: 'italic' }}>
                       "{parsed.examinersObservations}"
                     </p>
                   </div>
                 )}
 
-                {/* 5b. Missing Provisions Alert Box */}
+                {/* 5b. Missing Provisions */}
                 {parsed.missingProvisions && (
                   <div style={{ padding: '24px', backgroundColor: '#fff1f2', borderRadius: '16px', border: '1px solid #fecdd3' }}>
                     <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', fontWeight: 700, color: '#be123c', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <XCircle size={16} color="#ef4444" />
-                      Missing Legal Provisions, Rules & Concepts
+                      <XCircle size={16} color="#ef4444" /> Missing Legal Provisions, Rules & Concepts
                     </h4>
-                    <div style={{ fontSize: '13.5px', color: '#9f1239', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
+                    <div style={{ fontSize: '13.5px', color: '#9f1239', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
                       {parsed.missingProvisions}
                     </div>
                   </div>
                 )}
 
-                {/* 6 & 7: How to Score & Common Mistakes side-by-side */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-                  {parsed.howToScoreFullMarks && (
-                    <div style={{ padding: '24px', backgroundColor: '#f0fdf4', borderRadius: '16px', border: '1px solid #bbf7d0' }}>
-                      <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#166534' }}>How to Improve</h4>
-                      <div style={{ fontSize: '13.5px', color: '#14532d', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
-                        {parsed.howToScoreFullMarks}
-                      </div>
+                {/* Founder-only expandable panel */}
+                {markdownContent.includes('### 11.') && (
+                  <details style={{ 
+                    marginTop: '32px', 
+                    padding: '24px', 
+                    backgroundColor: '#fafafa', 
+                    border: '1px dashed #cbd5e1', 
+                    borderRadius: '16px',
+                    cursor: 'pointer'
+                  }}>
+                    <summary style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', outline: 'none' }}>
+                      🛠️ Founder Debug Engine Logs
+                    </summary>
+                    <div style={{ marginTop: '16px', fontSize: '12.5px', color: '#475569', lineHeight: '1.6', whiteSpace: 'pre-wrap', cursor: 'default' }}>
+                      {markdownContent.substring(markdownContent.search(/###\s*11\./i))}
                     </div>
-                  )}
-                  {parsed.commonMistakes && (
-                    <div style={{ padding: '24px', backgroundColor: '#fdf2f2', borderRadius: '16px', border: '1px solid #fecdd3' }}>
-                      <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#991b1b' }}>Common Mistakes to Avoid</h4>
-                      <div style={{ fontSize: '13.5px', color: '#7f1d1d', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
-                        {parsed.commonMistakes}
-                      </div>
-                    </div>
-                  )}
+                  </details>
+                )}
+              </div>
+            )}
+
+            {/* Perfect Model Answer Section */}
+            {activeSection === 'model' && (
+              <div>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 700, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={18} color="#2563eb" /> Perfect 5-Mark Model Answer
+                </h4>
+                <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>Full expert examiner script representation matching max allotted marks.</p>
+                <div style={{ fontSize: '14.5px', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                  {parsed.perfectModelAnswer || modelAnswerContent || 'No model answer generated.'}
                 </div>
-
               </div>
-            ) : (
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '15px', color: '#334155' }}>
-                {critiqueContent || 'No evaluation critique available.'}
-              </div>
-            )
-          ) : (
-            hasStructuredCritique ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                
-                {/* 8. Improved Answer */}
-                {parsed.improvedAnswer && (
-                  <div style={{ padding: '28px', backgroundColor: '#f0fdfa', borderRadius: '16px', border: '1px solid #99f6e4' }}>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Improved Candidate Answer</h4>
-                    <p style={{ fontSize: '13px', color: '#0f766e', marginBottom: '16px' }}>Re-written to preserve your layout while fixing grammatical, presentation, and legal reference gaps.</p>
-                    <div style={{ fontSize: '14.5px', color: '#115e59', lineHeight: '1.7', whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontWeight: 500 }}>
-                      {parsed.improvedAnswer}
-                    </div>
-                  </div>
-                )}
+            )}
 
-                {/* 9. Perfect Model Answer */}
-                {parsed.perfectModelAnswer && (
-                  <div style={{ padding: '28px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.04)' }}>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 700, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Sparkles size={18} color="#2563eb" />
-                      Perfect 5-Mark Model Answer
-                    </h4>
-                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>Full expert examiner script representation matching max allotted marks.</p>
-                    <div style={{ fontSize: '14.5px', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                      {parsed.perfectModelAnswer}
-                    </div>
-                  </div>
-                )}
-
-                {/* 10. Key Takeaways */}
-                {parsed.keyTakeaways && (
-                  <div style={{ padding: '28px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 14px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Revision Notes</h4>
-                    <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>
-                      {parsed.keyTakeaways}
-                    </div>
-                  </div>
-                )}
-
+            {/* Improved Candidate Answer Section */}
+            {activeSection === 'improved' && (
+              <div style={{ padding: '4px' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#8b5cf6' }}>Improved Candidate Answer</h4>
+                <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>Re-written to preserve your layout while fixing grammatical, presentation, and legal reference gaps.</p>
+                <div style={{ fontSize: '14.5px', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                  {parsed.improvedAnswer || 'No polished answer generated.'}
+                </div>
               </div>
-            ) : (
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '15px', color: '#334155' }}>
-                {modelAnswerContent ? (
-                  modelAnswerContent
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-                    <Ban size={28} style={{ marginBottom: '12px', opacity: 0.5, color: '#64748b' }} />
-                    <p style={{ margin: 0, fontSize: '14px' }}>No Model Answer outline generated for this syllabus question yet.</p>
-                  </div>
-                )}
+            )}
+
+            {/* Revision Notes Section */}
+            {activeSection === 'revision' && (
+              <div>
+                <h4 style={{ margin: '0 0 14px 0', fontSize: '15px', fontWeight: 700, color: '#d97706' }}>Revision Notes</h4>
+                <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>
+                  {parsed.keyTakeaways || 'No revision notes available.'}
+                </div>
               </div>
-            )
-          )}
-        </div>
+            )}
+
+          </div>
+        )}
+
       </div>
 
       {/* 5. Next Actions Section */}

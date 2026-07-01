@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { GoogleGenAI } from '@google/genai';
 import { logGeminiUsage } from '@/lib/usage-tracker';
+import { getGeminiKeys, getMaskedKey, callModelWithRotation } from '@/lib/gemini-keys';
 
 export interface SearchResult {
   id: string;
@@ -29,27 +30,6 @@ export interface CorrectiveRagResult {
   }>;
 }
 
-// Parse all Gemini API keys (comma-separated, numbered, and fallback)
-const apiKeys = (() => {
-  const keysSet = new Set<string>();
-  if (process.env.GEMINI_API_KEYS) {
-    process.env.GEMINI_API_KEYS.split(',').forEach(k => {
-      const trimmed = k.trim();
-      if (trimmed) keysSet.add(trimmed);
-    });
-  }
-  for (let i = 1; i <= 10; i++) {
-    const key = process.env[`GEMINI_API_KEY_${i}`];
-    if (key) {
-      keysSet.add(key.trim());
-    }
-  }
-  if (process.env.GEMINI_API_KEY) {
-    keysSet.add(process.env.GEMINI_API_KEY.trim());
-  }
-  return Array.from(keysSet);
-})();
-
 // Global index pointer for round-robin rotation across requests
 let globalKeyIndex = 0;
 
@@ -57,35 +37,17 @@ let globalKeyIndex = 0;
  * Helper to call Gemini model with custom key rotation and model fallback.
  */
 async function callGemini(modelName: string, contents: any): Promise<string> {
-  const keys = apiKeys.length > 0 ? apiKeys : [process.env.GEMINI_API_KEY || ''];
-  
-  // Choose the starting key index for this request (Round-Robin style)
-  let currentRequestKeyIndex = globalKeyIndex;
-  // Advance the global pointer for the next request
-  globalKeyIndex = (globalKeyIndex + 1) % keys.length;
-
+  const keys = getGeminiKeys();
   const modelsToTry = [modelName, 'gemini-2.5-flash'];
   const uniqueModels = Array.from(new Set(modelsToTry));
 
   let lastError: any;
 
   for (const model of uniqueModels) {
-    const keysCount = keys.length;
-    for (let attempt = 0; attempt < keysCount; attempt++) {
-      const apiKey = keys[currentRequestKeyIndex];
-      if (!apiKey) {
-        console.warn(`[RAG Service] Empty API key at index ${currentRequestKeyIndex}. Rotating...`);
-        currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
-        globalKeyIndex = currentRequestKeyIndex;
-        continue;
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-
-      try {
-        const masked = apiKey.substring(0, 6) + '...' + apiKey.substring(apiKey.length - 4);
-        console.log(`🌐 [RAG Service] callGemini: model ${model} key index ${currentRequestKeyIndex} (${masked})`);
-        const result = await ai.models.generateContent({
+    try {
+      const result = await callModelWithRotation(async (ai, keyInfo) => {
+        console.log(`🌐 [RAG Service] callGemini: model ${model} key index ${keyInfo.index} (${keyInfo.masked})`);
+        return await ai.models.generateContent({
           model: model,
           contents: contents,
           config: {
@@ -93,35 +55,13 @@ async function callGemini(modelName: string, contents: any): Promise<string> {
             thinkingLevel: 'minimal'
           } as any
         });
-        return result.text || '';
-      } catch (err: any) {
-        lastError = err;
-        const errorMsg = err.message || '';
-        const statusCode = String(err.status || err.statusCode || '');
-
-        console.error(`❌ [RAG Service] callGemini error:
-        Model: ${model}
-        Key Index: ${currentRequestKeyIndex}
-        Status Code: ${statusCode}
-        Message: ${errorMsg}
-        Stack: ${err.stack}
-        Full Object:`, JSON.stringify(err));
-
-        if (keysCount > 1) {
-          console.warn(`⚠️ [RAG Service] Gemini API key index ${currentRequestKeyIndex} failed (${statusCode || 'Error'}: ${errorMsg.substring(0, 100)}). Rotating key...`);
-          // Increment pointer to grab the next fresh backup key
-          currentRequestKeyIndex = (currentRequestKeyIndex + 1) % keysCount;
-          // Sync global index pointer
-          globalKeyIndex = currentRequestKeyIndex;
-
-          // Wait 1.5 seconds before retry
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          continue;
-        }
-
-        // For single-key setup or if we have tried all options, fail immediately for this model/key combination
-        break;
-      }
+      }, keys.length);
+      return result.text || '';
+    } catch (err: any) {
+      lastError = err;
+      const errorMsg = err.message || '';
+      const statusCode = String(err.status || err.statusCode || '');
+      console.warn(`⚠️ [RAG Service] callGemini: model ${model} failed (status ${statusCode}: ${errorMsg.substring(0, 100)}). Trying fallback model...`);
     }
   }
 
@@ -137,7 +77,7 @@ async function getQueryEmbedding(text: string): Promise<number[]> {
     return embeddingCache.get(cacheKey)!;
   }
 
-  const keys = apiKeys.length > 0 ? apiKeys : [process.env.GEMINI_API_KEY || ''];
+  const keys = getGeminiKeys();
   const apiKey = keys[globalKeyIndex % keys.length] || '';
   
   if (!apiKey) {
@@ -774,17 +714,24 @@ export async function evaluateAnswerMultimodalStream(
             body: bodyFormData,
           });
 
+          const status = ocrResponse.status;
+          const responseText = await ocrResponse.text();
+          console.log(`🌐 [RAG Service OCR.Space Fallback Logs]
+          File: src/services/rag-core/services/rag-service.ts:L712
+          HTTP Status: ${status}
+          Response Body: ${responseText}`);
+
           if (!ocrResponse.ok) {
-            throw new Error(`OCR.Space HTTP error: ${ocrResponse.status}`);
+            throw new Error(`OCR.Space HTTP error: ${status}. Response: ${responseText}`);
           }
 
-          const ocrResult = await ocrResponse.json();
+          const ocrResult = JSON.parse(responseText);
           let extractedText = '';
           if (ocrResult.OCRExitCode === 1) {
             extractedText = ocrResult.ParsedResults?.[0]?.ParsedText || '';
             console.log('✅ [RAG Service] OCR.Space fallback successfully extracted text.');
           } else {
-            throw new Error(ocrResult.ErrorMessage?.[0] || 'OCR.Space returned exit code error');
+            throw new Error(`OCR.Space returned exit code error (${ocrResult.OCRExitCode}): ${ocrResult.ErrorMessage?.[0] || 'Unknown error'}`);
           }
 
           if (!extractedText.trim()) {
@@ -871,7 +818,7 @@ export async function evaluateAnswerMultimodalStream(
         } catch (ocrErr: any) {
           console.error(`❌ [RAG Service] Fallback failed:`, ocrErr);
           const errorMsg = ocrErr.message || ocrErr;
-          controller.enqueue(encoder.encode(`\n❌ Fatal Error: Evaluation pipeline collapsed. Reason: ${errorMsg}`));
+          controller.enqueue(encoder.encode(`\n❌ Fatal Error: The evaluation pipeline failed. Root cause: ${errorMsg}`));
         }
       }
 

@@ -376,7 +376,7 @@ export async function POST(request: Request) {
       status: 'failure'
     });
     return NextResponse.json({
-      error: `System Error: ${error.message || 'Unknown error'}`,
+      error: `Text evaluation failed. Root cause: ${error.message || 'Unknown error'}`,
       status: 'failed'
     }, { status: 500 });
   }

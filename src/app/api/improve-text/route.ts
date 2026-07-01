@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Improve Text Route Error:', error);
     return NextResponse.json({ 
-      error: `System Error: ${error.message || 'Unknown error'}`,
+      error: `Text improvement failed. Root cause: ${error.message || 'Unknown error'}`,
       status: 'failed'
     }, { status: 500 });
   }

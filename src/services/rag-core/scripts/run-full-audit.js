@@ -23,28 +23,69 @@ function loadEnv() {
 
 loadEnv();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-if (!GEMINI_API_KEY || !SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌ Error: Environment variables missing in .env.local');
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('❌ Error: Supabase environment variables missing in .env.local');
   process.exit(1);
 }
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const sampleQuestion = "Explain the regulatory framework and provisions relating to buy-back of shares under the Companies Act, 2013.";
 const sampleAnswer = "A company can buy back its shares. Buy-back is governed by Section 68 of the Companies Act 2013. The buy-back must be authorized by the company's articles of association. A special resolution must be passed in the general meeting of the company. However, if the buyback is 10% or less of the total paid-up equity capital and free reserves of the company, it can be authorized by the board of directors by a resolution. The buyback must be completed within 12 months from the date of the resolution. The ratio of debt owed by the company after buy-back should not be more than twice the aggregate of its paid-up capital and free reserves.";
 
+const keysSet = new Set();
+if (process.env.GEMINI_API_KEYS) {
+  process.env.GEMINI_API_KEYS.split(',').forEach(k => {
+    const trimmed = k.trim();
+    if (trimmed) keysSet.add(trimmed);
+  });
+}
+for (let i = 1; i <= 10; i++) {
+  const key = process.env[`GEMINI_API_KEY_${i}`];
+  if (key) keysSet.add(key.trim());
+}
+if (process.env.GEMINI_API_KEY) {
+  keysSet.add(process.env.GEMINI_API_KEY.trim());
+}
+
+const apiKeys = Array.from(keysSet);
+let currentIdx = 0;
+
+if (apiKeys.length === 0) {
+  console.error('❌ Error: No Gemini API keys found in env variables');
+  process.exit(1);
+}
+
+async function callModelWithRotationLocal(fn, maxAttempts = 5) {
+  let lastError;
+  const attemptsLimit = Math.max(maxAttempts, apiKeys.length);
+  for (let attempt = 0; attempt < attemptsLimit; attempt++) {
+    const key = apiKeys[currentIdx];
+    currentIdx = (currentIdx + 1) % apiKeys.length;
+    const aiClient = new GoogleGenAI({ apiKey: key });
+    try {
+      return await fn(aiClient);
+    } catch (err) {
+      lastError = err;
+      const masked = key.substring(0, 6) + '...' + key.substring(key.length - 4);
+      console.warn(`⚠️ [Audit Client] Key ${masked} failed. Rotating...`);
+    }
+  }
+  throw lastError;
+}
+
 // Helper to generate embedding using gemini-embedding-2
 async function getEmbedding(text) {
-  const response = await ai.models.embedContent({
-    model: 'gemini-embedding-2',
-    contents: text
+  return await callModelWithRotationLocal(async (aiClient) => {
+    const response = await aiClient.models.embedContent({
+      model: 'gemini-embedding-2',
+      contents: text
+    });
+    return response.embeddings?.[0]?.values;
   });
-  return response.embeddings?.[0]?.values;
 }
 
 // Helper to call match_icsi_knowledge

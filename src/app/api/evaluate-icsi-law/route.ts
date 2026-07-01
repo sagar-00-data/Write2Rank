@@ -400,7 +400,7 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
       status: 'failure'
     });
     return NextResponse.json({
-      error: `Server Error: ${err.message || 'Unknown error'}`
+      error: `Evaluation pipeline failed. Root cause: ${err.message || 'Unknown error'}`
     }, { status: 500 });
   }
 }
