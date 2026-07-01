@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
+// IMPORTANT: This file is intended for server-side use only.
+// Do not import this into client-side components to avoid leaking the service role key.
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE || '';
@@ -39,3 +42,5 @@ export const supabaseServer = new Proxy({} as any, {
     return Reflect.get(rawSupabase, prop);
   }
 });
+
+export const supabaseAdmin = supabaseServer;

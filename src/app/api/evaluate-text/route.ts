@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-server';
 import { callModelWithRotation } from '@/lib/gemini-keys';
 import { checkUserLimits, logUserUsage } from '@/lib/usage-tracker';
 

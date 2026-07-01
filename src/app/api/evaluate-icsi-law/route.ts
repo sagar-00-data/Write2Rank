@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-server';
 import { runCorrectiveRag, evaluateAnswerMultimodalStream } from '@/services/rag-core/services/rag-service';
 import { checkUserLimits, logUserUsage } from '@/lib/usage-tracker';
 
