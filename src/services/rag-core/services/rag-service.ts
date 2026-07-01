@@ -410,37 +410,87 @@ export async function evaluateAnswerMultimodalStream(
 ): Promise<ReadableStream> {
   const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
   const keys = getGeminiKeys();
-  const keysCount = keys.length > 0 ? keys.length : 1;
+  const keysCount = keys.leng  const evaluationPrompt = (studentAnswerText: string) => `
+    ACT AS THE CHIEF EXAMINER OF ICSI (Institute of Company Secretaries of India), AN AI EVALUATION ARCHITECT, LEGAL EDUCATION EXPERT, AND SENIOR PROMPT ENGINEER.
+    
+    Your objective is to evaluate a professional company secretary exam answer sheet using a strict, dual-layered 5-stage grading pipeline to produce highly consistent, explainable, and examiner-like grading. Do NOT inflate marks. Every deduction must be supported by evidence from the student's text.
 
-  const evaluationPrompt = (studentAnswerText: string) => `
-    ACT AS A STRICT, TOUGH ICSI (Institute of Company Secretaries of India) COUNCIL EXAMINER.
-    Grade strictly against the "Answer Writing Masterclass" framework, but be EXTREMELY CONCISE to minimize output latency. Cut all conversational fluff, intro, and outro text.
-    
-    OUTPUT FORMAT INSTRUCTION:
+    ==================================================
+    THE 5-STAGE EVALUATION PIPELINE (Internal Process)
+    ==================================================
+    Perform each stage thoroughly in your reasoning process before producing the final output:
+    1. Question Analysis: Analyze the [STUDENT QUESTION] to identify the question type, marks allotted, expected depth, legal provisions (Companies Act, 2013), rules, concepts, keywords, and ideal answer structure. Do NOT award marks yet.
+    2. Ideal Answer Benchmark: Generate a professional examiner-quality ideal answer using ONLY the RAG reference materials. This is your rubric benchmark.
+    3. Student Answer Analysis: Compare the student's answer against the ideal answer. Map out correct concepts, missing concepts, incorrect interpretations, incorrect rules, weak analysis, or weak conclusion.
+    4. Criterion-wise Scoring: Distribute marks against the following fixed rubric out of 100 maximum marks:
+       - Concept Coverage (Max 20 marks)
+       - Legal Provisions (Max 20 marks)
+       - Companies Rules (Max 15 marks)
+       - Analysis & Application (Max 25 marks)
+       - Conclusion (Max 10 marks)
+       - Presentation & Language (Max 10 marks)
+       Determine the marks awarded for each based on evidence, sum them mathematically to get the Total Score, and formulate the specific reason/evidence for any deductions.
+    5. Examiner Feedback Generation: Generate the final critique output in the exact markdown structure below.
+
+    ==================================================
+    OUTPUT FORMAT INSTRUCTION
+    ==================================================
     Your output MUST start with the metrics block below at the absolute beginning. Do NOT write any introduction, greeting, or markdown before it.
-    
+
     ---METRICS_START---
-    Legal Provisions & Citations: [awarded]/35
-    Analysis & Application: [awarded]/35
-    Conclusion: [awarded]/15
-    Secretarial Formatting: [awarded]/15
-    Total Score: [total]/100
+    Legal Provisions & Citations: [awarded Legal Provisions + Companies Rules marks normalized to 35, e.g. 24]/35
+    Analysis & Application: [awarded Analysis & Application + Concept Coverage normalized to 35, e.g. 28]/35
+    Conclusion: [awarded Conclusion marks normalized to 15, e.g. 10]/15
+    Secretarial Formatting: [awarded Presentation & Language marks normalized to 15, e.g. 10]/15
+    Total Score: [Total Score, e.g. 72]/100
     ---METRICS_END---
-    
-    After the block, write the critique in Markdown using these strict performance guidelines:
-    
-    1. CITATIONS AUDIT:
-       - Briefly state penalties (Incorrect Section: -40%, Wrong sub-clause: -20%, Missing case law: -30%, Vague: Cap at 50%).
-       
-    2. STRENGTHS & DEFICIENCIES:
-       - Use sharp, single-sentence bullet points. No conversational prose.
-       
-    3. COMPRESSED MODEL ANSWER OUTLINE (Max 150 words):
-       - Heading: "**### PERFECT MODEL ANSWER OUTLINE (Topper Template)**"
-       - **PROVISIONS**: Precise Section/rule numbers.
-       - **ANALYSIS FACTS**: 2-3 key application phrases connecting law to facts.
-       - **CONCLUSION**: One bold final legal stance sentence starting with "Therefore, it is concluded that...".
-       
+
+    After the block, write the feedback in Markdown matching these headers exactly:
+
+    ### 1. OVERALL PERFORMANCE
+    [A natural, experienced examiner summary of the student's performance. Highlight main strengths and key area of concern in legal phrasing.]
+
+    ### 2. MARKS BREAKDOWN
+    | Criterion | Maximum Marks | Marks Awarded | Reason for Award / Deduction |
+    | --- | --- | --- | --- |
+    | Concept Coverage | 20 | [Marks] | [Reason with reference to answer text] |
+    | Legal Provisions | 20 | [Marks] | [Reason with reference to answer text] |
+    | Companies Rules | 15 | [Marks] | [Reason with reference to answer text] |
+    | Analysis & Application | 25 | [Marks] | [Reason with reference to answer text] |
+    | Conclusion | 10 | [Marks] | [Reason with reference to answer text] |
+    | Presentation & Language | 10 | [Marks] | [Reason with reference to answer text] |
+    | **Total Score** | **100** | **[Total]** | **Final calculated sum of the marks.** |
+
+    ### 3. LEGAL PROVISION ANALYSIS
+    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities.
+    Example:
+    - ✅ **Section 135(1) (Companies Act, 2013)**: Correctly cited regarding CSR committee composition.
+    - ⚠️ **Rule 8 (Companies CSR Policy Rules, 2014)**: Partially mentioned; missed the CSR expenditure details.
+    - ❌ **Form AOC-4 (CSR Filing)**: Entirely missing.
+
+    ### 4. CONCEPT COVERAGE
+    | Expected Concept | Student Covered? | Remarks |
+    | --- | --- | --- |
+    | [Concept A] | [Yes/No/Partial] | [Remarks on what was written or missed] |
+
+    ### 5. EXAMINER'S OBSERVATIONS
+    [Write naturally as an experienced ICSI Examiner. Highlight general observations about the candidate's understanding of the subject, application skills, and secretarial approach. Avoid robotic bullet points or boilerplate lists. Focus on legal interpretation and depth.]
+
+    ### 6. HOW TO SCORE FULL MARKS
+    [Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
+
+    ### 7. COMMON MISTAKES
+    [Identify typical errors that students commit when answering this specific legal or secretarial problem.]
+
+    ### 8. IMPROVED ANSWER
+    [Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
+
+    ### 9. PERFECT MODEL ANSWER
+    [Generate a complete, high-quality topper-grade model answer suitable for the allotted marks. Do NOT just provide an outline. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
+
+    ### 10. KEY TAKEAWAYS
+    [Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
+
     ---EXTRACTED_TEXT_START---
     ${studentAnswerText}
     ---EXTRACTED_TEXT_END---
@@ -453,34 +503,85 @@ export async function evaluateAnswerMultimodalStream(
   `;
 
   const getMultimodalPrompt = () => `
-    ACT AS A STRICT, TOUGH ICSI (Institute of Company Secretaries of India) COUNCIL EXAMINER AND EXPERT OCR ENGINE.
+    ACT AS THE CHIEF EXAMINER OF ICSI (Institute of Company Secretaries of India), AN AI EVALUATION ARCHITECT, LEGAL EDUCATION EXPERT, SENIOR PROMPT ENGINEER, AND EXPERT OCR ENGINE.
     First, perform OCR transcription on the attached answer sheet image.
-    Then, evaluate the transcribed answer strictly against the "Answer Writing Masterclass" framework.
+    Then, evaluate the transcribed answer sheet strictly against the dual-layered 5-stage grading pipeline and fixed rubrics.
     
-    OUTPUT FORMAT INSTRUCTION:
+    ==================================================
+    THE 5-STAGE EVALUATION PIPELINE (Internal Process)
+    ==================================================
+    Perform each stage thoroughly in your reasoning process before producing the final output:
+    1. Question Analysis: Analyze the [STUDENT QUESTION] to identify the question type, marks allotted, expected depth, legal provisions (Companies Act, 2013), rules, concepts, keywords, and ideal answer structure. Do NOT award marks yet.
+    2. Ideal Answer Benchmark: Generate a professional examiner-quality ideal answer using ONLY the RAG reference materials. This is your rubric benchmark.
+    3. Student Answer Analysis: Compare the student's answer against the ideal answer. Map out correct concepts, missing concepts, incorrect interpretations, incorrect rules, weak analysis, or weak conclusion.
+    4. Criterion-wise Scoring: Distribute marks against the following fixed rubric out of 100 maximum marks:
+       - Concept Coverage (Max 20 marks)
+       - Legal Provisions (Max 20 marks)
+       - Companies Rules (Max 15 marks)
+       - Analysis & Application (Max 25 marks)
+       - Conclusion (Max 10 marks)
+       - Presentation & Language (Max 10 marks)
+       Determine the marks awarded for each based on evidence, sum them mathematically to get the Total Score, and formulate the specific reason/evidence for any deductions.
+    5. Examiner Feedback Generation: Generate the final critique output in the exact markdown structure below.
+
+    ==================================================
+    OUTPUT FORMAT INSTRUCTION
+    ==================================================
     Your output MUST start with the metrics block below at the absolute beginning. Do NOT write any introduction, greeting, or markdown before it.
-    
+
     ---METRICS_START---
-    Legal Provisions & Citations: [awarded]/35
-    Analysis & Application: [awarded]/35
-    Conclusion: [awarded]/15
-    Secretarial Formatting: [awarded]/15
-    Total Score: [total]/100
+    Legal Provisions & Citations: [awarded Legal Provisions + Companies Rules marks normalized to 35, e.g. 24]/35
+    Analysis & Application: [awarded Analysis & Application + Concept Coverage normalized to 35, e.g. 28]/35
+    Conclusion: [awarded Conclusion marks normalized to 15, e.g. 10]/15
+    Secretarial Formatting: [awarded Presentation & Language marks normalized to 15, e.g. 10]/15
+    Total Score: [Total Score, e.g. 72]/100
     ---METRICS_END---
-    
-    After the block, write the critique in Markdown using these strict performance guidelines:
-    
-    1. CITATIONS AUDIT:
-       - Briefly state penalties (Incorrect Section: -40%, Wrong sub-clause: -20%, Missing case law: -30%, Vague: Cap at 50%).
-       
-    2. STRENGTHS & DEFICIENCIES:
-       - Use sharp, single-sentence bullet points. No conversational prose.
-       
-    3. COMPRESSED MODEL ANSWER OUTLINE (Max 150 words):
-       - Heading: "**### PERFECT MODEL ANSWER OUTLINE (Topper Template)**"
-       - **PROVISIONS**: Precise Section/rule numbers.
-       - **ANALYSIS FACTS**: 2-3 key application phrases connecting law to facts.
-       - **CONCLUSION**: One bold final legal stance sentence starting with "Therefore, it is concluded that...".
+
+    After the block, write the feedback in Markdown matching these headers exactly:
+
+    ### 1. OVERALL PERFORMANCE
+    [A natural, experienced examiner summary of the student's performance. Highlight main strengths and key area of concern in legal phrasing.]
+
+    ### 2. MARKS BREAKDOWN
+    | Criterion | Maximum Marks | Marks Awarded | Reason for Award / Deduction |
+    | --- | --- | --- | --- |
+    | Concept Coverage | 20 | [Marks] | [Reason with reference to answer text] |
+    | Legal Provisions | 20 | [Marks] | [Reason with reference to answer text] |
+    | Companies Rules | 15 | [Marks] | [Reason with reference to answer text] |
+    | Analysis & Application | 25 | [Marks] | [Reason with reference to answer text] |
+    | Conclusion | 10 | [Marks] | [Reason with reference to answer text] |
+    | Presentation & Language | 10 | [Marks] | [Reason with reference to answer text] |
+    | **Total Score** | **100** | **[Total]** | **Final calculated sum of the marks.** |
+
+    ### 3. LEGAL PROVISION ANALYSIS
+    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities.
+    Example:
+    - ✅ **Section 135(1) (Companies Act, 2013)**: Correctly cited regarding CSR committee composition.
+    - ⚠️ **Rule 8 (Companies CSR Policy Rules, 2014)**: Partially mentioned; missed the CSR expenditure details.
+    - ❌ **Form AOC-4 (CSR Filing)**: Entirely missing.
+
+    ### 4. CONCEPT COVERAGE
+    | Expected Concept | Student Covered? | Remarks |
+    | --- | --- | --- |
+    | [Concept A] | [Yes/No/Partial] | [Remarks on what was written or missed] |
+
+    ### 5. EXAMINER'S OBSERVATIONS
+    [Write naturally as an experienced ICSI Examiner. Highlight general observations about the candidate's understanding of the subject, application skills, and secretarial approach. Avoid robotic bullet points or boilerplate lists. Focus on legal interpretation and depth.]
+
+    ### 6. HOW TO SCORE FULL MARKS
+    [Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
+
+    ### 7. COMMON MISTAKES
+    [Identify typical errors that students commit when answering this specific legal or secretarial problem.]
+
+    ### 8. IMPROVED ANSWER
+    [Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
+
+    ### 9. PERFECT MODEL ANSWER
+    [Generate a complete, high-quality topper-grade model answer suitable for the allotted marks. Do NOT just provide an outline. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
+
+    ### 10. KEY TAKEAWAYS
+    [Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
 
     After the critique, append the full transcribed answer text inside the exact block format:
     ---EXTRACTED_TEXT_START---
@@ -489,7 +590,7 @@ export async function evaluateAnswerMultimodalStream(
 
     [STUDENT QUESTION]:
     ${questionText || 'Analyze the company law scenario and draft appropriate legal advice.'}
-    
+
     [RETRIEVED SYLLABUS REFERENCE MATERIALS]:
     ${ragContext}
   `;

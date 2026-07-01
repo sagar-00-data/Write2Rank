@@ -56,10 +56,10 @@ function parseStreamText(text: string): StreamData {
 
   generalMarkdown = generalMarkdown.replace(/---EVAL_ID:eval_[a-z0-9_]+---\n?/, '').trim();
 
-  // Segment remaining text into bento boxes
-  const auditHeaderIdx = generalMarkdown.search(/1\.\s*CITATIONS\s*AUDIT/i);
-  const strengthsHeaderIdx = generalMarkdown.search(/2\.\s*STRENGTHS\s*&/i);
-  const modelHeaderIdx = generalMarkdown.search(/3\.\s*COMPRESSED|###\s*PERFECT\s*MODEL\s*ANSWER/i);
+  // Segment remaining text into bento boxes based on the new 10-section structure
+  const auditHeaderIdx = generalMarkdown.search(/(?:1\.\s*OVERALL|###\s*1\.\s*OVERALL)/i);
+  const strengthsHeaderIdx = generalMarkdown.search(/(?:5\.\s*EXAMINER|###\s*5\.\s*EXAMINER)/i);
+  const modelHeaderIdx = generalMarkdown.search(/(?:9\.\s*PERFECT|###\s*9\.\s*PERFECT)/i);
 
   if (auditHeaderIdx > -1) {
     if (strengthsHeaderIdx > -1) {
