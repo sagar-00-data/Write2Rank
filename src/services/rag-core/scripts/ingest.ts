@@ -96,17 +96,53 @@ async function main() {
       const chunks = chunkText(rawText);
       console.log(`✂️ Created ${chunks.length} chunks.`);
 
-      let successCount = 0;
+      // Query existing chunks in Supabase to avoid duplicates
+      const { data: existingRows } = await supabase
+        .from('icsi_knowledge_embeddings')
+        .select('metadata')
+        .eq('metadata->>source_file', file);
+      
+      const ingestedIndices = new Set<number>();
+      if (existingRows) {
+        for (const row of existingRows) {
+          const idx = (row.metadata as any)?.chunk_index;
+          if (typeof idx === 'number') {
+            ingestedIndices.add(idx);
+          }
+        }
+      }
+      console.log(`ℹ️ Already ingested chunks count: ${ingestedIndices.size}.`);
+
+      let successCount = ingestedIndices.size;
+
+      // Helper function with retry backoff for rate limits
+      async function getEmbeddingWithRetry(text: string, retries = 5, delay = 2000): Promise<number[]> {
+        try {
+          return await getEmbedding(text);
+        } catch (err: any) {
+          const errMsg = err.message || '';
+          if (retries > 0 && (errMsg.includes('429') || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('limit'))) {
+            console.warn(`⚠️ Rate limited. Retrying in ${delay / 1000}s (${retries} retries left)...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return getEmbeddingWithRetry(text, retries - 1, delay * 2);
+          }
+          throw err;
+        }
+      }
 
       for (let i = 0; i < chunks.length; i++) {
+        if (ingestedIndices.has(i)) {
+          continue;
+        }
+        
         const chunk = chunks[i];
         const progress = `[${i + 1}/${chunks.length}]`;
         
         try {
-          // Add a small delay between embedding calls to prevent rate limiting
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Add a delay between embedding calls to prevent rate limiting
+          await new Promise(resolve => setTimeout(resolve, 800));
           
-          const embedding = await getEmbedding(chunk.content);
+          const embedding = await getEmbeddingWithRetry(chunk.content);
           
           const { error } = await supabase.from('icsi_knowledge_embeddings').insert({
             chunk_content: chunk.content,
@@ -144,3 +180,4 @@ async function main() {
 main().catch(err => {
   console.error('💥 Fatal ingestion error:', err);
 });
+

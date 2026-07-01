@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -225,12 +227,14 @@ function Skeleton({ h = 120, r = 16, w }: { h?: number; r?: number; w?: string }
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────
 export default function FounderOperationsCenter() {
+  const router = useRouter();
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [tick, setTick] = useState(0);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchData = useCallback(async (silent = false) => {
@@ -254,16 +258,39 @@ export default function FounderOperationsCenter() {
     }
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/admin/api/logout', { method: 'POST' });
+      if (res.ok) {
+        router.refresh();
+        router.push('/admin');
+      }
+    } catch (err) {
+      console.error('Failed to log out:', err);
+    }
+  };
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
-    timerRef.current = setInterval(() => { fetchData(true); setTick(t => t + 1); }, 30_000);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (autoRefresh) {
+      timerRef.current = setInterval(() => {
+        fetchData(true);
+        setTick(t => t + 1);
+      }, 30_000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    }
     const clockInterval = setInterval(() => setTick(t => t + 1), 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       clearInterval(clockInterval);
     };
-  }, [fetchData]);
+  }, [fetchData, autoRefresh]);
 
   const now = new Date();
 
@@ -319,56 +346,256 @@ export default function FounderOperationsCenter() {
   const chartLatency = data.chartData.map(d => d.avgLatency);
   const chartCost = data.chartData.map(d => d.cost * 1000); // scale for visibility
 
-  // ── MAIN RENDER ────────────────────────────────────────────
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1700, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#06080c', display: 'flex', flexDirection: 'column' }}>
       <style>{CSS_STR}</style>
 
-      {/* ── TOP HEADER ─────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, paddingBottom: 22, borderBottom: `1px solid ${C.border}` }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <span className="fd-chip-purple">
-              <span className="fd-live-dot" />
-              Founder Operations
-            </span>
-            <span style={{ fontSize: 11, color: C.textDim, fontWeight: 500 }}>
-              ⏱ Auto-refresh every 30s
-            </span>
+      {/* 1. TOP NAVIGATION BAR */}
+      <nav style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        height: '70px', 
+        background: 'rgba(9, 13, 22, 0.7)', 
+        backdropFilter: 'blur(16px)', 
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
+        padding: '0 32px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        width: '100%'
+      }}>
+        {/* Left Side */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Write2Rank Logo */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            background: 'linear-gradient(135deg, #4f46e5, #8b5cf6)',
+            borderRadius: '8px',
+            fontWeight: 800,
+            fontSize: '14px',
+            color: '#ffffff',
+            boxShadow: '0 0 12px rgba(79, 70, 229, 0.4)'
+          }}>
+            W
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, letterSpacing: '-0.025em', marginBottom: 4, lineHeight: 1 }}>
-            Write2Rank Operations Center
-          </h1>
-          <p style={{ fontSize: 13, color: C.textMuted, fontWeight: 500 }}>
-            Real-time platform intelligence · {now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
+            Write2Rank
+          </span>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: C.textDim }}>|</span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: C.textMuted }}>
+            Founder Command Center
+          </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          {/* Platform status */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-            <HealthBadge status={data.systemHealth.overall} />
-            <span style={{ fontSize: 9, color: C.textDim, fontFamily: 'monospace' }}>
-              Last sync {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          </div>
-          {/* Clock */}
-          <div style={{ padding: '8px 14px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: C.textMuted, letterSpacing: '0.04em' }}>
-            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </div>
-          {/* Sync button */}
-          <button
-            className="fd-btn-secondary"
-            disabled={refreshing}
-            onClick={() => fetchData(true)}
-            style={{ opacity: refreshing ? 0.7 : 1 }}
+
+        {/* Center Side: Navigation Items */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {[
+            { name: 'Dashboard', href: '/admin/dashboard', active: true },
+            { name: 'Users', href: '/admin/users' },
+            { name: 'Evaluations', href: '/admin/evaluations' },
+            { name: 'Analytics', href: '/admin/analytics' },
+            { name: 'OCR', href: '/admin/dashboard#ocr' },
+            { name: 'RAG', href: '/admin/dashboard#rag' },
+            { name: 'AI Cost', href: '/admin/dashboard#api-usage' },
+            { name: 'System Health', href: '/admin/settings#health' },
+            { name: 'Settings', href: '/admin/settings' },
+          ].map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: item.active ? '#ffffff' : C.textMuted,
+                padding: '8px 14px',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                background: item.active ? 'rgba(255,255,255,0.05)' : 'transparent',
+                border: item.active ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
+                transition: 'all 0.2s ease',
+              }}
+              className={item.active ? '' : 'fd-nav-item'}
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+
+        {/* Right Side */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Production badge */}
+          <span style={{ 
+            fontSize: '9px', 
+            fontWeight: 800, 
+            color: '#10b981', 
+            background: 'rgba(16, 185, 129, 0.1)', 
+            border: '1px solid rgba(16, 185, 129, 0.25)', 
+            padding: '3px 10px', 
+            borderRadius: '99px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+            Production
+          </span>
+          {/* Profile Dropdown / Log Out icon */}
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              background: 'rgba(255,255,255,0.02)', 
+              border: '1px solid rgba(255,255,255,0.05)', 
+              color: C.textMuted, 
+              padding: '6px 12px', 
+              borderRadius: '8px', 
+              fontSize: '11px', 
+              fontWeight: 600, 
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
           >
-            <span style={{ display: 'inline-block', animation: refreshing ? 'fd-spin 0.8s linear infinite' : 'none' }}>⟳</span>
-            {refreshing ? 'Syncing…' : 'Sync Now'}
+            Sign Out
           </button>
         </div>
-      </div>
+      </nav>
 
-      {/* ── DATA HEALTH WARNING ─────────────────────────── */}
+      {/* Main Content Body */}
+      <div style={{ padding: '40px 32px', maxWidth: 1700, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 32, width: '100%' }}>
+        
+        {/* 2. EXECUTIVE HEADER */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap', 
+          gap: 24, 
+          paddingBottom: '8px'
+        }}>
+          <div>
+            <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.03em', marginBottom: '8px', lineHeight: 1.1 }}>
+              Founder Operations Center
+            </h1>
+            <p style={{ fontSize: '14px', color: C.textMuted, fontWeight: 500, margin: 0 }}>
+              Real-time operational intelligence for the Write2Rank platform.
+            </p>
+          </div>
+
+          {/* Operational Status Card */}
+          <div style={{ 
+            padding: '16px 20px', 
+            backgroundColor: '#090d16', 
+            border: '1px solid rgba(255, 255, 255, 0.05)', 
+            borderRadius: '16px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 24
+          }}>
+            {/* Environment Badge */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Environment</span>
+              <span style={{ 
+                fontSize: '11px', 
+                fontWeight: 700, 
+                color: '#10b981', 
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5
+              }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                Production
+              </span>
+            </div>
+
+            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+
+            {/* Sync metrics */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Last Sync</span>
+              <span style={{ fontSize: '12px', color: C.textMuted, fontWeight: 600, fontFamily: 'monospace' }}>
+                {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            </div>
+
+            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+
+            {/* Time metric */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Current Time</span>
+              <span style={{ fontSize: '12px', color: '#ffffff', fontWeight: 700, fontFamily: 'monospace' }}>
+                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            </div>
+
+            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+
+            {/* Auto Refresh Toggle */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Auto Refresh</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Premium Switch Switcher */}
+                <label className="fd-switch" style={{ position: 'relative', display: 'inline-block', width: '32px', height: '18px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={autoRefresh} 
+                    onChange={(e) => setAutoRefresh(e.target.checked)} 
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span className="fd-slider" />
+                </label>
+                <span style={{ fontSize: '10px', color: autoRefresh ? '#8b5cf6' : C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {autoRefresh ? '30s' : 'Off'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+
+            {/* Sync Now button */}
+            <button
+              className="fd-btn-secondary"
+              disabled={refreshing}
+              onClick={() => fetchData(true)}
+              style={{ opacity: refreshing ? 0.7 : 1, padding: '8px 14px', borderRadius: '10px' }}
+            >
+              <span style={{ display: 'inline-block', animation: refreshing ? 'fd-spin 0.8s linear infinite' : 'none', marginRight: '4px' }}>⟳</span>
+              {refreshing ? 'Syncing…' : 'Sync Now'}
+            </button>
+          </div>
+        </div>
+
+        {/* 3. SECTION HEADER */}
+        <div style={{ 
+          marginTop: '8px',
+          marginBottom: '-16px'
+        }}>
+          <h2 style={{ 
+            fontSize: '14px', 
+            fontWeight: 800, 
+            color: C.textMuted, 
+            textTransform: 'uppercase', 
+            letterSpacing: '0.12em',
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}>
+            <span style={{ width: '4px', height: '12px', background: C.indigo, display: 'inline-block', borderRadius: '2px' }} />
+            Executive Summary
+          </h2>
+        </div>
+
+        {/* ── DATA HEALTH WARNING ─────────────────────────── */}
       {!data.meta.hasServiceKey && (
         <div className="fd-card" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: 12 }}>
           <span style={{ fontSize: 18 }}>🚨</span>
@@ -736,6 +963,7 @@ export default function FounderOperationsCenter() {
           Generated {new Date(data.meta.generatedAt).toLocaleTimeString()}
         </span>
       </div>
+      </div>
     </div>
   );
 }
@@ -844,6 +1072,40 @@ const CSS_STR = `
   .fd-scroll::-webkit-scrollbar-track { background: transparent; }
   .fd-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 99px; }
   .fd-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.12); }
+
+  /* Premium Switch Toggle */
+  .fd-switch input:checked + .fd-slider {
+    background-color: #6366f1;
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+  }
+  .fd-switch input:checked + .fd-slider:before {
+    transform: translateX(14px);
+    background-color: #ffffff;
+  }
+  .fd-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.06);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .fd-slider:before {
+    position: absolute;
+    content: "";
+    height: 12px; width: 12px;
+    left: 2px; bottom: 2px;
+    background-color: #94a3b8;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+  }
+  .fd-nav-item:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+  }
 
   @keyframes fd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes fd-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.9); } }

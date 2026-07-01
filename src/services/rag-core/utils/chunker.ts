@@ -1,6 +1,6 @@
 /**
- * Semantic Paragraph-based Chunker for dense legal documents.
- * Splitting on double newlines to keep legal clauses, sections, and paragraphs intact,
+ * Semantic and Legal-aware Chunker for dense legal documents.
+ * Splitting on Chapter and Section boundaries to keep legal clauses, sections, and paragraphs intact,
  * and grouping them up to a target size with an overlap window.
  */
 
@@ -17,7 +17,8 @@ function estimateTokens(text: string): number {
 }
 
 /**
- * Splits text into paragraphs, then groups paragraphs into chunks.
+ * Splits text into logical chunks, prioritizing Chapter/Section boundaries,
+ * then falling back to paragraphs, and grouping them.
  *
  * @param text The raw extracted text from the PDF document.
  * @param targetTokenSize Target number of tokens per chunk (default: 600).
@@ -28,62 +29,73 @@ export function chunkText(
   targetTokenSize = 600,
   overlapTokenSize = 150
 ): Chunk[] {
-  if (!text || text.trim() === '') {
+  const textStr = text;
+  if (!textStr || typeof textStr !== 'string' || textStr.trim() === '') {
     return [];
   }
 
-  // Split by common paragraph boundaries
-  const paragraphs = text
-    .split(/\r?\n\s*\r?\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+  // Legal-aware splitting: Check if we have Chapter or Section headings
+  const hasLegalHeadings = /chapter\s+[ivxlcdm]+|section\s+\d+/i.test(textStr);
+  
+  let parts: string[] = [];
+  if (hasLegalHeadings) {
+    // Split on Section or Chapter boundaries, keeping the delimiter at the start of the split element
+    parts = textStr
+      .split(/(?=chapter\s+[ivxlcdm]+|section\s+\d+|sec\.\s+\d+)/gi)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  } else {
+    // Fall back to paragraph boundaries
+    parts = textStr
+      .split(/\r?\n\s*\r?\n/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
 
   const chunks: Chunk[] = [];
-  let currentParagraphs: string[] = [];
+  let currentParts: string[] = [];
   let currentTokenCount = 0;
 
-  for (let i = 0; i < paragraphs.length; i++) {
-    const para = paragraphs[i];
-    const paraTokens = estimateTokens(para);
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const partTokens = estimateTokens(part);
 
-    // If a single paragraph is extremely long (e.g. exceeding target size),
-    // we might need to split it by sentences, but usually double newlines are safe.
-    if (currentTokenCount + paraTokens > targetTokenSize && currentParagraphs.length > 0) {
+    if (currentTokenCount + partTokens > targetTokenSize && currentParts.length > 0) {
       // Finalize the current chunk
-      const chunkTextContent = currentParagraphs.join('\n\n');
+      const chunkTextContent = currentParts.join('\n\n');
       chunks.push({
         content: chunkTextContent,
         estimatedTokens: currentTokenCount,
       });
 
-      // Keep paragraphs that fit within the overlap window for the next chunk
-      const newParagraphs: string[] = [];
+      // Keep parts that fit within the overlap window for the next chunk
+      const newParts: string[] = [];
       let overlapCount = 0;
 
-      // Scan backwards from the current paragraph list to build overlap
-      for (let j = currentParagraphs.length - 1; j >= 0; j--) {
-        const prevPara = currentParagraphs[j];
-        const prevParaTokens = estimateTokens(prevPara);
-        if (overlapCount + prevParaTokens <= overlapTokenSize) {
-          newParagraphs.unshift(prevPara);
-          overlapCount += prevParaTokens;
+      // Scan backwards from the current list to build overlap
+      for (let j = currentParts.length - 1; j >= 0; j--) {
+        const prevPart = currentParts[j];
+        const prevPartTokens = estimateTokens(prevPart);
+        if (overlapCount + prevPartTokens <= overlapTokenSize) {
+          newParts.unshift(prevPart);
+          overlapCount += prevPartTokens;
         } else {
           break;
         }
       }
 
-      currentParagraphs = newParagraphs;
+      currentParts = newParts;
       currentTokenCount = overlapCount;
     }
 
-    currentParagraphs.push(para);
-    currentTokenCount += paraTokens;
+    currentParts.push(part);
+    currentTokenCount += partTokens;
   }
 
   // Finalize the last chunk
-  if (currentParagraphs.length > 0) {
+  if (currentParts.length > 0) {
     chunks.push({
-      content: currentParagraphs.join('\n\n'),
+      content: currentParts.join('\n\n'),
       estimatedTokens: currentTokenCount,
     });
   }
