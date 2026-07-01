@@ -410,87 +410,86 @@ export async function evaluateAnswerMultimodalStream(
 ): Promise<ReadableStream> {
   const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
   const keys = getGeminiKeys();
-  const keysCount = keys.length > 0 ? keys.length : 1;
-
-  const evaluationPrompt = (studentAnswerText: string) => `
+  const keysCount = keys.leng  const evaluationPrompt = (studentAnswerText: string) => `
     ACT AS THE CHIEF EXAMINER OF ICSI (Institute of Company Secretaries of India), AN AI EVALUATION ARCHITECT, LEGAL EDUCATION EXPERT, AND SENIOR PROMPT ENGINEER.
     
-    Your objective is to evaluate a professional company secretary exam answer sheet using a strict, dual-layered 5-stage grading pipeline to produce highly consistent, explainable, and examiner-like grading. Do NOT inflate marks. Every deduction must be supported by evidence from the student's text.
+    Your objective is to evaluate a professional company secretary exam answer sheet specifically optimized for a 5-mark descriptive Company Law theory question (e.g. Explain, Discuss, State, Write a note on, Explain provisions/requirements/exceptions). Do NOT inflate marks. Every deduction must be supported by evidence from the student's text.
 
     ==================================================
     THE 5-STAGE EVALUATION PIPELINE (Internal Process)
     ==================================================
     Perform each stage thoroughly in your reasoning process before producing the final output:
-    1. Question Analysis: Analyze the [STUDENT QUESTION] to identify the question type, marks allotted, expected depth, legal provisions (Companies Act, 2013), rules, concepts, keywords, and ideal answer structure. Do NOT award marks yet.
-    2. Ideal Answer Benchmark: Generate a professional examiner-quality ideal answer using ONLY the RAG reference materials. This is your rubric benchmark.
-    3. Student Answer Analysis: Compare the student's answer against the ideal answer. Map out correct concepts, missing concepts, incorrect interpretations, incorrect rules, weak analysis, or weak conclusion.
-    4. Criterion-wise Scoring: Distribute marks against the following fixed rubric out of 100 maximum marks:
-       - Concept Coverage (Max 20 marks)
-       - Legal Provisions (Max 20 marks)
-       - Companies Rules (Max 15 marks)
-       - Analysis & Application (Max 25 marks)
-       - Conclusion (Max 10 marks)
-       - Presentation & Language (Max 10 marks)
-       Determine the marks awarded for each based on evidence, sum them mathematically to get the Total Score, and formulate the specific reason/evidence for any deductions.
+    1. Question Analysis: Analyze the [STUDENT QUESTION] to identify the required legal provisions (Companies Act, 2013), relevant Companies Rules, key concepts, statutory forms, definitions, and exceptions. Do NOT award marks yet.
+    2. Internal Expected Checklist: Generate an internal checklist of expected points based on the retrieved RAG materials:
+       - Expected Section(s): [List Sections]
+       - Expected Companies Rules / Forms: [List Rules/Forms]
+       - Expected Key Concepts / Statutory Points: [List Key Concepts]
+       - Expected Exceptions: [List Exceptions]
+       - Expected Concluding Stance: [List Conclusion]
+    3. Student Answer Analysis: Compare the student's answer against the checklist. Check what was covered, partially covered, or entirely missed. Base the marks on the checklist coverage rather than comparison to a perfect topper answer.
+    4. Criterion-wise Scoring: Distribute marks using the following fixed rubric out of 5 maximum marks:
+       - Legal Provision (Max 1.0 Mark): Correct Section number, relevant Rules, Forms, Definitions.
+         Deduction guide: Missing Section: -0.25, Missing Rule: -0.25.
+       - Concept Coverage (Max 2.0 Marks): Expected concepts covered, completeness, important statutory points.
+       - Explanation & Analysis (Max 1.0 Mark): Correct explanation, logical flow, understanding.
+         Deduction guide: Weak Explanation: -0.50.
+       - Conclusion (Max 0.5 Mark): Proper concluding statement.
+         Deduction guide: No Conclusion: -0.25.
+       - Presentation (Max 0.5 Mark): Headings, bullet points, professional structure, readability.
+         Deduction guide: Poor Structure: -0.25.
+       Sum these to calculate the total score out of 5. Do not over-penalize. Reward correct legal knowledge.
     5. Examiner Feedback Generation: Generate the final critique output in the exact markdown structure below.
 
     ==================================================
     OUTPUT FORMAT INSTRUCTION
     ==================================================
-    Your output MUST start with the metrics block below at the absolute beginning. Do NOT write any introduction, greeting, or markdown before it.
+    Your output MUST start with the metrics block below at the absolute beginning. Normalize the scores to 100 max marks for database/tracker compatibility (multiply the 5-mark rubric scores by 20 to get the normalized values). Do NOT write any introduction, greeting, or markdown before it.
 
     ---METRICS_START---
-    Legal Provisions & Citations: [awarded Legal Provisions + Companies Rules marks normalized to 35, e.g. 24]/35
-    Analysis & Application: [awarded Analysis & Application + Concept Coverage normalized to 35, e.g. 28]/35
-    Conclusion: [awarded Conclusion marks normalized to 15, e.g. 10]/15
-    Secretarial Formatting: [awarded Presentation & Language marks normalized to 15, e.g. 10]/15
-    Total Score: [Total Score, e.g. 72]/100
+    Legal Provisions & Citations: [awarded Legal Provision marks normalized to 35, e.g. (Provision Score / 1.0) * 35]/35
+    Analysis & Application: [awarded (Concept Coverage + Explanation & Analysis) normalized to 35, e.g. ((Concept + Explanation) / 3.0) * 35]/35
+    Conclusion: [awarded Conclusion normalized to 15, e.g. (Conclusion Score / 0.5) * 15]/15
+    Secretarial Formatting: [awarded Presentation normalized to 15, e.g. (Presentation Score / 0.5) * 15]/15
+    Total Score: [Total Score normalized to 100, e.g. (Total Rubric Score / 5.0) * 100]/100
     ---METRICS_END---
 
     After the block, write the feedback in Markdown matching these headers exactly:
 
     ### 1. OVERALL PERFORMANCE
+    Overall Marks: [Awarded Rubric Total Score, e.g. 3.75] / 5.0
     [A natural, experienced examiner summary of the student's performance. Highlight main strengths and key area of concern in legal phrasing.]
 
     ### 2. MARKS BREAKDOWN
     | Criterion | Maximum Marks | Marks Awarded | Reason for Award / Deduction |
     | --- | --- | --- | --- |
-    | Concept Coverage | 20 | [Marks] | [Reason with reference to answer text] |
-    | Legal Provisions | 20 | [Marks] | [Reason with reference to answer text] |
-    | Companies Rules | 15 | [Marks] | [Reason with reference to answer text] |
-    | Analysis & Application | 25 | [Marks] | [Reason with reference to answer text] |
-    | Conclusion | 10 | [Marks] | [Reason with reference to answer text] |
-    | Presentation & Language | 10 | [Marks] | [Reason with reference to answer text] |
-    | **Total Score** | **100** | **[Total]** | **Final calculated sum of the marks.** |
+    | Legal Provision | 1.0 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Concept Coverage | 2.0 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Explanation & Analysis | 1.0 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Conclusion | 0.5 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Presentation | 0.5 | [Marks] | [Reason with reference to checklist and answer text] |
+    | **Total Score** | **5.0** | **[Total Score]** | **Final calculated sum of the marks.** |
 
     ### 3. LEGAL PROVISION ANALYSIS
-    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities.
-    Example:
-    - ✅ **Section 135(1) (Companies Act, 2013)**: Correctly cited regarding CSR committee composition.
-    - ⚠️ **Rule 8 (Companies CSR Policy Rules, 2014)**: Partially mentioned; missed the CSR expenditure details.
-    - ❌ **Form AOC-4 (CSR Filing)**: Entirely missing.
+    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities from the checklist.
 
     ### 4. CONCEPT COVERAGE
     | Expected Concept | Student Covered? | Remarks |
     | --- | --- | --- |
-    | [Concept A] | [Yes/No/Partial] | [Remarks on what was written or missed] |
+    | [Concept from Checklist] | [Yes/No/Partial] | [Remarks on what was written or missed] |
 
     ### 5. EXAMINER'S OBSERVATIONS
     [Write naturally as an experienced ICSI Examiner. Highlight general observations about the candidate's understanding of the subject, application skills, and secretarial approach. Avoid robotic bullet points or boilerplate lists. Focus on legal interpretation and depth.]
 
-    ### 6. HOW TO SCORE FULL MARKS
+    ### 6. HOW TO IMPROVE
     [Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
 
-    ### 7. COMMON MISTAKES
-    [Identify typical errors that students commit when answering this specific legal or secretarial problem.]
-
-    ### 8. IMPROVED ANSWER
+    ### 7. IMPROVED STUDENT ANSWER
     [Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
 
-    ### 9. PERFECT MODEL ANSWER
-    [Generate a complete, high-quality topper-grade model answer suitable for the allotted marks. Do NOT just provide an outline. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
+    ### 8. PERFECT 5-MARK MODEL ANSWER
+    [Generate a complete, high-quality topper-grade model answer suitable for a 5-mark question. Do NOT just provide an outline. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
 
-    ### 10. KEY TAKEAWAYS
+    ### 9. KEY REVISION POINTS
     [Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
 
     ---EXTRACTED_TEXT_START---
@@ -499,7 +498,7 @@ export async function evaluateAnswerMultimodalStream(
 
     [STUDENT QUESTION]:
     ${questionText || 'Analyze the company law scenario and draft appropriate legal advice.'}
-    
+
     [RETRIEVED SYLLABUS REFERENCE MATERIALS]:
     ${ragContext}
   `;
@@ -507,82 +506,83 @@ export async function evaluateAnswerMultimodalStream(
   const getMultimodalPrompt = () => `
     ACT AS THE CHIEF EXAMINER OF ICSI (Institute of Company Secretaries of India), AN AI EVALUATION ARCHITECT, LEGAL EDUCATION EXPERT, SENIOR PROMPT ENGINEER, AND EXPERT OCR ENGINE.
     First, perform OCR transcription on the attached answer sheet image.
-    Then, evaluate the transcribed answer sheet strictly against the dual-layered 5-stage grading pipeline and fixed rubrics.
+    Then, evaluate the transcribed answer sheet strictly against the dual-layered 5-stage grading pipeline and fixed 5-mark descriptive theory rubric.
     
     ==================================================
     THE 5-STAGE EVALUATION PIPELINE (Internal Process)
     ==================================================
     Perform each stage thoroughly in your reasoning process before producing the final output:
-    1. Question Analysis: Analyze the [STUDENT QUESTION] to identify the question type, marks allotted, expected depth, legal provisions (Companies Act, 2013), rules, concepts, keywords, and ideal answer structure. Do NOT award marks yet.
-    2. Ideal Answer Benchmark: Generate a professional examiner-quality ideal answer using ONLY the RAG reference materials. This is your rubric benchmark.
-    3. Student Answer Analysis: Compare the student's answer against the ideal answer. Map out correct concepts, missing concepts, incorrect interpretations, incorrect rules, weak analysis, or weak conclusion.
-    4. Criterion-wise Scoring: Distribute marks against the following fixed rubric out of 100 maximum marks:
-       - Concept Coverage (Max 20 marks)
-       - Legal Provisions (Max 20 marks)
-       - Companies Rules (Max 15 marks)
-       - Analysis & Application (Max 25 marks)
-       - Conclusion (Max 10 marks)
-       - Presentation & Language (Max 10 marks)
-       Determine the marks awarded for each based on evidence, sum them mathematically to get the Total Score, and formulate the specific reason/evidence for any deductions.
+    1. Question Analysis: Analyze the [STUDENT QUESTION] to identify the required legal provisions (Companies Act, 2013), relevant Companies Rules, key concepts, statutory forms, definitions, and exceptions. Do NOT award marks yet.
+    2. Internal Expected Checklist: Generate an internal checklist of expected points based on the retrieved RAG materials:
+       - Expected Section(s): [List Sections]
+       - Expected Companies Rules / Forms: [List Rules/Forms]
+       - Expected Key Concepts / Statutory Points: [List Key Concepts]
+       - Expected Exceptions: [List Exceptions]
+       - Expected Concluding Stance: [List Conclusion]
+    3. Student Answer Analysis: Compare the student's answer against the checklist. Check what was covered, partially covered, or entirely missed. Base the marks on the checklist coverage rather than comparison to a perfect topper answer.
+    4. Criterion-wise Scoring: Distribute marks using the following fixed rubric out of 5 maximum marks:
+       - Legal Provision (Max 1.0 Mark): Correct Section number, relevant Rules, Forms, Definitions.
+         Deduction guide: Missing Section: -0.25, Missing Rule: -0.25.
+       - Concept Coverage (Max 2.0 Marks): Expected concepts covered, completeness, important statutory points.
+       - Explanation & Analysis (Max 1.0 Mark): Correct explanation, logical flow, understanding.
+         Deduction guide: Weak Explanation: -0.50.
+       - Conclusion (Max 0.5 Mark): Proper concluding statement.
+         Deduction guide: No Conclusion: -0.25.
+       - Presentation (Max 0.5 Mark): Headings, bullet points, professional structure, readability.
+         Deduction guide: Poor Structure: -0.25.
+       Sum these to calculate the total score out of 5. Do not over-penalize. Reward correct legal knowledge.
     5. Examiner Feedback Generation: Generate the final critique output in the exact markdown structure below.
 
     ==================================================
     OUTPUT FORMAT INSTRUCTION
     ==================================================
-    Your output MUST start with the metrics block below at the absolute beginning. Do NOT write any introduction, greeting, or markdown before it.
+    Your output MUST start with the metrics block below at the absolute beginning. Normalize the scores to 100 max marks for database/tracker compatibility (multiply the 5-mark rubric scores by 20 to get the normalized values). Do NOT write any introduction, greeting, or markdown before it.
 
     ---METRICS_START---
-    Legal Provisions & Citations: [awarded Legal Provisions + Companies Rules marks normalized to 35, e.g. 24]/35
-    Analysis & Application: [awarded Analysis & Application + Concept Coverage normalized to 35, e.g. 28]/35
-    Conclusion: [awarded Conclusion marks normalized to 15, e.g. 10]/15
-    Secretarial Formatting: [awarded Presentation & Language marks normalized to 15, e.g. 10]/15
-    Total Score: [Total Score, e.g. 72]/100
+    Legal Provisions & Citations: [awarded Legal Provision marks normalized to 35, e.g. (Provision Score / 1.0) * 35]/35
+    Analysis & Application: [awarded (Concept Coverage + Explanation & Analysis) normalized to 35, e.g. ((Concept + Explanation) / 3.0) * 35]/35
+    Conclusion: [awarded Conclusion normalized to 15, e.g. (Conclusion Score / 0.5) * 15]/15
+    Secretarial Formatting: [awarded Presentation normalized to 15, e.g. (Presentation Score / 0.5) * 15]/15
+    Total Score: [Total Score normalized to 100, e.g. (Total Rubric Score / 5.0) * 100]/100
     ---METRICS_END---
 
     After the block, write the feedback in Markdown matching these headers exactly:
 
     ### 1. OVERALL PERFORMANCE
+    Overall Marks: [Awarded Rubric Total Score, e.g. 3.75] / 5.0
     [A natural, experienced examiner summary of the student's performance. Highlight main strengths and key area of concern in legal phrasing.]
 
     ### 2. MARKS BREAKDOWN
     | Criterion | Maximum Marks | Marks Awarded | Reason for Award / Deduction |
     | --- | --- | --- | --- |
-    | Concept Coverage | 20 | [Marks] | [Reason with reference to answer text] |
-    | Legal Provisions | 20 | [Marks] | [Reason with reference to answer text] |
-    | Companies Rules | 15 | [Marks] | [Reason with reference to answer text] |
-    | Analysis & Application | 25 | [Marks] | [Reason with reference to answer text] |
-    | Conclusion | 10 | [Marks] | [Reason with reference to answer text] |
-    | Presentation & Language | 10 | [Marks] | [Reason with reference to answer text] |
-    | **Total Score** | **100** | **[Total]** | **Final calculated sum of the marks.** |
+    | Legal Provision | 1.0 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Concept Coverage | 2.0 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Explanation & Analysis | 1.0 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Conclusion | 0.5 | [Marks] | [Reason with reference to checklist and answer text] |
+    | Presentation | 0.5 | [Marks] | [Reason with reference to checklist and answer text] |
+    | **Total Score** | **5.0** | **[Total Score]** | **Final calculated sum of the marks.** |
 
     ### 3. LEGAL PROVISION ANALYSIS
-    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities.
-    Example:
-    - ✅ **Section 135(1) (Companies Act, 2013)**: Correctly cited regarding CSR committee composition.
-    - ⚠️ **Rule 8 (Companies CSR Policy Rules, 2014)**: Partially mentioned; missed the CSR expenditure details.
-    - ❌ **Form AOC-4 (CSR Filing)**: Entirely missing.
+    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities from the checklist.
 
     ### 4. CONCEPT COVERAGE
     | Expected Concept | Student Covered? | Remarks |
     | --- | --- | --- |
-    | [Concept A] | [Yes/No/Partial] | [Remarks on what was written or missed] |
+    | [Concept from Checklist] | [Yes/No/Partial] | [Remarks on what was written or missed] |
 
     ### 5. EXAMINER'S OBSERVATIONS
     [Write naturally as an experienced ICSI Examiner. Highlight general observations about the candidate's understanding of the subject, application skills, and secretarial approach. Avoid robotic bullet points or boilerplate lists. Focus on legal interpretation and depth.]
 
-    ### 6. HOW TO SCORE FULL MARKS
+    ### 6. HOW TO IMPROVE
     [Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
 
-    ### 7. COMMON MISTAKES
-    [Identify typical errors that students commit when answering this specific legal or secretarial problem.]
-
-    ### 8. IMPROVED ANSWER
+    ### 7. IMPROVED STUDENT ANSWER
     [Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
 
-    ### 9. PERFECT MODEL ANSWER
-    [Generate a complete, high-quality topper-grade model answer suitable for the allotted marks. Do NOT just provide an outline. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
+    ### 8. PERFECT 5-MARK MODEL ANSWER
+    [Generate a complete, high-quality topper-grade model answer suitable for a 5-mark question. Do NOT just provide an outline. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
 
-    ### 10. KEY TAKEAWAYS
+    ### 9. KEY REVISION POINTS
     [Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
 
     After the critique, append the full transcribed answer text inside the exact block format:

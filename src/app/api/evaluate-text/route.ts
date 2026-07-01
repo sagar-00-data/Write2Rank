@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { callModelWithRotation } from '@/lib/gemini-keys';
 import { checkUserLimits, logUserUsage } from '@/lib/usage-tracker';
 
 async function updateUserAnalytics(userId: string) {
   try {
-    const { data: evals, error } = await supabase
+    const { data: evals, error } = await supabaseAdmin
       .from('evaluations')
       .select('score, max_score, created_at, exam_type, ai_feedback')
       .eq('user_id', userId);
@@ -50,7 +50,7 @@ async function updateUserAnalytics(userId: string) {
         score: Math.round((e.score / e.max_score) * 100)
       }));
 
-    await supabase
+    await supabaseAdmin
       .from('analytics')
       .upsert({
         user_id: userId,
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
     // 5. Implement evaluation result caching
     try {
-      const { data: cachedEval } = await supabase
+      const { data: cachedEval } = await supabaseAdmin
         .from('evaluations')
         .select('*')
         .eq('user_id', targetUserId)
@@ -252,27 +252,33 @@ export async function POST(request: Request) {
           // Generate a unique ID
           const id = 'eval_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
           
-          // Save automatically to Supabase (Task 3)
+          // Save automatically to Supabase using admin client (bypasses RLS)
           try {
-            const { error: dbError } = await supabase
+            const insertPayload = {
+              id,
+              user_id: targetUserId,
+              question_text: questionText || '',
+              answer_text: answerText,
+              ocr_extracted_text: answerText,
+              ai_feedback: parsed,
+              score: parsed.score || 0,
+              max_score: parsed.maxScore || 100,
+              confidence: parsed.confidence || 95,
+              exam_type: examType || 'General'
+            };
+
+            console.log(`📥 [DB Insert] Attempting to save text evaluation ID: ${id} for user: ${targetUserId}, exam: ${examType}`);
+
+            const { data: insertData, error: dbError } = await supabaseAdmin
               .from('evaluations')
-              .insert({
-                id,
-                user_id: targetUserId,
-                question_text: questionText || '',
-                answer_text: answerText,
-                ocr_extracted_text: answerText,
-                ai_feedback: parsed,
-                score: parsed.score || 0,
-                max_score: parsed.maxScore || 100,
-                confidence: parsed.confidence || 95,
-                exam_type: examType || 'General'
-              });
-  
+              .insert(insertPayload)
+              .select();
+
             if (dbError) {
-              console.error('Failed to save evaluation to Supabase:', dbError);
+              console.error('❌ [DB Insert FAILED] Supabase error:', JSON.stringify(dbError, null, 2));
+              console.error('❌ [DB Insert FAILED] Payload:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
             } else {
-              console.log('Successfully saved evaluation to Supabase');
+              console.log(`✅ [DB Insert SUCCESS] Saved text evaluation ID: ${id}, rows: ${insertData?.length ?? 0}`);
               // Recalculate and update the analytics dashboard in real time
               await updateUserAnalytics(targetUserId);
             }

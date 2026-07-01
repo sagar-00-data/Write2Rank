@@ -12,6 +12,7 @@ interface CritiqueSections {
   legalProvisionAnalysis: string;
   conceptCoverage: string;
   examinersObservations: string;
+  missingProvisions: string;
   howToScoreFullMarks: string;
   commonMistakes: string;
   improvedAnswer: string;
@@ -26,6 +27,7 @@ function parseCritique(markdown: string): CritiqueSections {
     legalProvisionAnalysis: '',
     conceptCoverage: '',
     examinersObservations: '',
+    missingProvisions: '',
     howToScoreFullMarks: '',
     commonMistakes: '',
     improvedAnswer: '',
@@ -48,12 +50,13 @@ function parseCritique(markdown: string): CritiqueSections {
   sections.marksBreakdown = getSection('MARKS BREAKDOWN', /###\s*\d+\.\s*LEGAL PROVISION ANALYSIS/i);
   sections.legalProvisionAnalysis = getSection('LEGAL PROVISION ANALYSIS', /###\s*\d+\.\s*CONCEPT COVERAGE/i);
   sections.conceptCoverage = getSection('CONCEPT COVERAGE', /###\s*\d+\.\s*EXAMINER/i);
-  sections.examinersObservations = getSection('EXAMINER', /###\s*\d+\.\s*HOW TO SCORE/i);
-  sections.howToScoreFullMarks = getSection('HOW TO SCORE', /###\s*\d+\.\s*COMMON MISTAKES/i);
-  sections.commonMistakes = getSection('COMMON MISTAKES', /###\s*\d+\.\s*IMPROVED ANSWER/i);
-  sections.improvedAnswer = getSection('IMPROVED ANSWER', /###\s*\d+\.\s*PERFECT MODEL ANSWER/i);
-  sections.perfectModelAnswer = getSection('PERFECT MODEL ANSWER', /###\s*\d+\.\s*KEY TAKEAWAYS/i);
-  sections.keyTakeaways = getSection('KEY TAKEAWAYS', /$/i);
+  sections.examinersObservations = getSection('EXAMINER', /###\s*\d+\.\s*(?:MISSING LEGAL PROVISIONS|HOW TO SCORE|HOW TO IMPROVE)/i);
+  sections.missingProvisions = getSection('(?:MISSING LEGAL PROVISIONS|MISSING RULES)', /###\s*\d+\.\s*(?:HOW TO SCORE|HOW TO IMPROVE)/i);
+  sections.howToScoreFullMarks = getSection('(?:HOW TO SCORE|HOW TO IMPROVE)', /###\s*\d+\.\s*(?:COMMON MISTAKES|IMPROVED CANDIDATE ANSWER|IMPROVED STUDENT ANSWER|IMPROVED ANSWER)/i);
+  sections.commonMistakes = getSection('COMMON MISTAKES', /###\s*\d+\.\s*(?:IMPROVED CANDIDATE ANSWER|IMPROVED STUDENT ANSWER|IMPROVED ANSWER)/i);
+  sections.improvedAnswer = getSection('(?:IMPROVED CANDIDATE ANSWER|IMPROVED STUDENT ANSWER|IMPROVED ANSWER)', /###\s*\d+\.\s*(?:PERFECT MODEL ANSWER|PERFECT 5-MARK MODEL ANSWER)/i);
+  sections.perfectModelAnswer = getSection('(?:PERFECT MODEL ANSWER|PERFECT 5-MARK MODEL ANSWER)', /###\s*\d+\.\s*(?:KEY TAKEAWAYS|KEY REVISION POINTS|REVISION NOTES)/i);
+  sections.keyTakeaways = getSection('(?:KEY TAKEAWAYS|KEY REVISION POINTS|REVISION NOTES)', /$/i);
 
   return sections;
 }
@@ -211,7 +214,7 @@ export default function EvaluationDetail() {
   let critiqueContent = markdownContent;
   let modelAnswerContent = '';
 
-  const modelAnswerIndex = markdownContent.search(/### PERFECT MODEL ANSWER/i);
+  const modelAnswerIndex = markdownContent.search(/###\s*(?:\d+\.\s*)?PERFECT\s*(?:5-MARK\s*)?MODEL\s*ANSWER/i);
   if (modelAnswerIndex > -1) {
     critiqueContent = markdownContent.substring(0, modelAnswerIndex);
     modelAnswerContent = markdownContent.substring(modelAnswerIndex);
@@ -760,11 +763,24 @@ export default function EvaluationDetail() {
                   </div>
                 )}
 
+                {/* 5b. Missing Provisions Alert Box */}
+                {parsed.missingProvisions && (
+                  <div style={{ padding: '24px', backgroundColor: '#fff1f2', borderRadius: '16px', border: '1px solid #fecdd3' }}>
+                    <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', fontWeight: 700, color: '#be123c', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <XCircle size={16} color="#ef4444" />
+                      Missing Legal Provisions, Rules & Concepts
+                    </h4>
+                    <div style={{ fontSize: '13.5px', color: '#9f1239', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
+                      {parsed.missingProvisions}
+                    </div>
+                  </div>
+                )}
+
                 {/* 6 & 7: How to Score & Common Mistakes side-by-side */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
                   {parsed.howToScoreFullMarks && (
                     <div style={{ padding: '24px', backgroundColor: '#f0fdf4', borderRadius: '16px', border: '1px solid #bbf7d0' }}>
-                      <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#166534' }}>How to Score Full Marks</h4>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#166534' }}>How to Improve</h4>
                       <div style={{ fontSize: '13.5px', color: '#14532d', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 500 }}>
                         {parsed.howToScoreFullMarks}
                       </div>
@@ -793,7 +809,7 @@ export default function EvaluationDetail() {
                 {/* 8. Improved Answer */}
                 {parsed.improvedAnswer && (
                   <div style={{ padding: '28px', backgroundColor: '#f0fdfa', borderRadius: '16px', border: '1px solid #99f6e4' }}>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Polished Candidate Answer</h4>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Improved Candidate Answer</h4>
                     <p style={{ fontSize: '13px', color: '#0f766e', marginBottom: '16px' }}>Re-written to preserve your layout while fixing grammatical, presentation, and legal reference gaps.</p>
                     <div style={{ fontSize: '14.5px', color: '#115e59', lineHeight: '1.7', whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontWeight: 500 }}>
                       {parsed.improvedAnswer}
@@ -806,7 +822,7 @@ export default function EvaluationDetail() {
                   <div style={{ padding: '28px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.04)' }}>
                     <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 700, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Sparkles size={18} color="#2563eb" />
-                      Topper-Grade Model Answer
+                      Perfect 5-Mark Model Answer
                     </h4>
                     <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>Full expert examiner script representation matching max allotted marks.</p>
                     <div style={{ fontSize: '14.5px', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
@@ -818,7 +834,7 @@ export default function EvaluationDetail() {
                 {/* 10. Key Takeaways */}
                 {parsed.keyTakeaways && (
                   <div style={{ padding: '28px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 14px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Revision & Key Takeaways</h4>
+                    <h4 style={{ margin: '0 0 14px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Revision Notes</h4>
                     <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>
                       {parsed.keyTakeaways}
                     </div>

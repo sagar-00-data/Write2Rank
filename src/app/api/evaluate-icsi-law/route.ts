@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { runCorrectiveRag, evaluateAnswerMultimodalStream } from '@/services/rag-core/services/rag-service';
 import { checkUserLimits, logUserUsage } from '@/lib/usage-tracker';
 
-// Helper function to update analytics
 async function updateCSUserAnalytics(userId: string) {
   try {
-    const { data: evals, error } = await supabase
+    const { data: evals, error } = await supabaseAdmin
       .from('evaluations')
       .select('score, max_score, created_at, exam_type, ai_feedback')
       .eq('user_id', userId);
@@ -51,7 +50,7 @@ async function updateCSUserAnalytics(userId: string) {
         score: Math.round((e.score / e.max_score) * 100)
       }));
 
-    await supabase
+    await supabaseAdmin
       .from('analytics')
       .upsert({
         user_id: userId,
@@ -93,9 +92,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // Implement evaluation result caching
+    // Implement evaluation result caching (read-only, uses admin for consistency)
     try {
-      const { data: cachedEval } = await supabase
+      const { data: cachedEval } = await supabaseAdmin
         .from('evaluations')
         .select('*')
         .eq('user_id', targetUserId)
@@ -210,7 +209,8 @@ Total Score: ${cachedEval.score}/100
               crag_attempts: ragResult.attempts
             };
 
-            await supabase.from('evaluations').insert({
+            // ─── SAVE TO SUPABASE (using service-role client to bypass RLS) ───
+            const insertPayload = {
               id: evalId,
               user_id: targetUserId,
               question_text: questionText || '',
@@ -221,7 +221,21 @@ Total Score: ${cachedEval.score}/100
               max_score: 100,
               confidence: 95,
               exam_type: 'CS Executive - Company Law'
-            });
+            };
+
+            console.log(`📥 [DB Insert] Attempting to save evaluation ID: ${evalId} for user: ${targetUserId}`);
+
+            const { data: insertData, error: insertError } = await supabaseAdmin
+              .from('evaluations')
+              .insert(insertPayload)
+              .select();
+
+            if (insertError) {
+              console.error('❌ [DB Insert FAILED] Supabase error:', JSON.stringify(insertError, null, 2));
+              console.error('❌ [DB Insert FAILED] Payload that failed:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
+            } else {
+              console.log(`✅ [DB Insert SUCCESS] Saved evaluation ID: ${evalId}, rows inserted: ${insertData?.length ?? 0}`);
+            }
 
             await updateCSUserAnalytics(targetUserId);
             console.log('✅ Successfully saved CS evaluation and updated analytics for:', targetUserId);

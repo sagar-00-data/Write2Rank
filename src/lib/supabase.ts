@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
@@ -42,3 +43,41 @@ export const supabase = new Proxy({} as any, {
   }
 });
 
+/**
+ * Server-side Supabase admin client using the Service Role Key.
+ * ⚠️ ONLY use this in API routes (server-side). NEVER expose to the browser.
+ * This client bypasses Row Level Security (RLS), which is necessary for
+ * server-to-server writes (e.g., saving evaluation results from API routes).
+ */
+const rawSupabaseAdmin = (supabaseUrl && supabaseServiceRoleKey)
+  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      }
+    })
+  : null;
+
+export const supabaseAdmin = new Proxy({} as any, {
+  get(target, prop) {
+    if (!rawSupabaseAdmin) {
+      // Fall back to anon client if service role key not set, log a clear warning
+      console.warn(
+        `⚠️ supabaseAdmin accessed but SUPABASE_SERVICE_ROLE_KEY is not set. ` +
+        `Falling back to anon client — RLS will block server-side writes! Property: "${String(prop)}"`
+      );
+      if (!rawSupabase) {
+        const mockQueryBuilder: any = new Proxy(() => {}, {
+          get(t, p) {
+            if (p === 'then') return (resolve: any) => resolve({ data: null, error: new Error('Supabase not configured') });
+            return mockQueryBuilder;
+          },
+          apply() { return mockQueryBuilder; }
+        });
+        return mockQueryBuilder;
+      }
+      return Reflect.get(rawSupabase, prop);
+    }
+    return Reflect.get(rawSupabaseAdmin, prop);
+  }
+});
