@@ -126,7 +126,9 @@ async function transcribeScannedPdfFileApi(filePath: string, client: GoogleGenAI
   // Upload via File API to support large files without payload limit errors
   const file = await client.files.upload({
     file: filePath,
-    mimeType: 'application/pdf',
+    config: {
+      mimeType: 'application/pdf',
+    }
   });
 
   try {
