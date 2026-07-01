@@ -155,7 +155,9 @@ async function transcribeScannedPdfFileApi(filePath: string, client: GoogleGenAI
   } finally {
     // Ensure the file is deleted from Google Cloud storage after transcription
     try {
-      await client.files.delete({ name: file.name });
+      if (file.name) {
+        await client.files.delete({ name: file.name });
+      }
     } catch (delErr: any) {
       console.warn(`⚠️ Failed to clean up file ${file.name}:`, delErr.message);
     }
