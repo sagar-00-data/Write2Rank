@@ -410,7 +410,9 @@ export async function evaluateAnswerMultimodalStream(
 ): Promise<ReadableStream> {
   const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
   const keys = getGeminiKeys();
-  const keysCount = keys.leng  const evaluationPrompt = (studentAnswerText: string) => `
+  const keysCount = keys.length > 0 ? keys.length : 1;
+
+  const evaluationPrompt = (studentAnswerText: string) => `
     ACT AS THE CHIEF EXAMINER OF ICSI (Institute of Company Secretaries of India), AN AI EVALUATION ARCHITECT, LEGAL EDUCATION EXPERT, AND SENIOR PROMPT ENGINEER.
     
     Your objective is to evaluate a professional company secretary exam answer sheet using a strict, dual-layered 5-stage grading pipeline to produce highly consistent, explainable, and examiner-like grading. Do NOT inflate marks. Every deduction must be supported by evidence from the student's text.
