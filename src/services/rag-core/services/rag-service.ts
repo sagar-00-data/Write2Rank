@@ -10,6 +10,11 @@ export interface SearchResult {
     chunk_index: number;
     total_chunks: number;
     ingested_at: string;
+    document_name?: string;
+    source_category?: string;
+    related_sections?: string[];
+    keywords?: string[];
+    [key: string]: any;
   };
   similarity: number;
 }
@@ -339,7 +344,13 @@ export async function runCorrectiveRag(
     });
 
     const context = searchResults
-      .map((chunk, idx) => `[Source Document: ${chunk.metadata?.source_file || 'Unknown'}, Chunk: ${idx + 1}]\n${chunk.chunk_content}`)
+      .map((chunk, idx) => {
+        const docName = chunk.metadata?.source_file || chunk.metadata?.document_name || 'Unknown';
+        const category = chunk.metadata?.source_category || 'Unknown';
+        const related = (chunk.metadata?.related_sections || []).join(', ') || 'None';
+        const kws = (chunk.metadata?.keywords || []).join(', ') || 'None';
+        return `[Source Document: ${docName}, Category: ${category}, Related Sections: ${related}, Keywords: ${kws}, Chunk: ${idx + 1}]\n${chunk.chunk_content}`;
+      })
       .join('\n\n---\n\n');
 
     return {
@@ -358,7 +369,13 @@ export async function runCorrectiveRag(
       });
 
       const context = fallbackResults
-        .map((chunk, idx) => `[Source Document: ${chunk.metadata?.source_file || 'Unknown'}, Chunk: ${idx + 1}]\n${chunk.chunk_content}`)
+        .map((chunk, idx) => {
+          const docName = chunk.metadata?.source_file || chunk.metadata?.document_name || 'Unknown';
+          const category = chunk.metadata?.source_category || 'Unknown';
+          const related = (chunk.metadata?.related_sections || []).join(', ') || 'None';
+          const kws = (chunk.metadata?.keywords || []).join(', ') || 'None';
+          return `[Source Document: ${docName}, Category: ${category}, Related Sections: ${related}, Keywords: ${kws}, Chunk: ${idx + 1}]\n${chunk.chunk_content}`;
+        })
         .join('\n\n---\n\n');
 
       return {
