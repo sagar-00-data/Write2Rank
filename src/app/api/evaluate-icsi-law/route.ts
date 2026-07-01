@@ -140,11 +140,96 @@ Total Score: ${cachedEval.score}/100
 
     console.log('🤖 Running Corrective RAG search for ICSI Company Law...');
     const ragResult = await runCorrectiveRag(questionText || '', answerText || '');
-    
+
+    // Parse URL parameter to check for Founder Benchmark Mode
+    let isBenchmarkMode = false;
+    try {
+      const { searchParams } = new URL(request.url);
+      isBenchmarkMode = searchParams.get('isBenchmark') === 'true';
+    } catch (e) {}
+
     // Generate a unique ID upfront to send to client
     const evalId = 'eval_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-
     const encoder = new TextEncoder();
+
+    if (isBenchmarkMode) {
+      console.log('⚙️ [Founder Benchmark Mode] Initializing consistency evaluation runs...');
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            controller.enqueue(encoder.encode(`---EVAL_ID:${evalId}---\n`));
+            controller.enqueue(encoder.encode(`### FOUNDER BENCHMARK MODE REPORT\n`));
+
+            // Execute 3 runs in parallel
+            const runPromises = Array.from({ length: 3 }).map(async (_, idx) => {
+              const runStream = await evaluateAnswerMultimodalStream(
+                questionText || '',
+                base64Image || '',
+                mimeType || 'image/jpeg',
+                ragResult.context,
+                answerText || ''
+              );
+              const runReader = runStream.getReader();
+              let text = '';
+              while (true) {
+                const { done, value } = await runReader.read();
+                if (done) break;
+                text += new TextDecoder().decode(value);
+              }
+              // Extract the total score from metrics
+              const totalScoreMatch = text.match(/Total Score:\s*(\d+)/i);
+              const rubricScoreMatch = text.match(/Overall Marks:\s*([\d.]+)/i);
+              const score = totalScoreMatch ? parseInt(totalScoreMatch[1], 10) : 0;
+              const rubricScore = rubricScoreMatch ? parseFloat(rubricScoreMatch[1]) : (score / 20);
+              return { rubricScore, text };
+            });
+
+            const results = await Promise.all(runPromises);
+            const scores = results.map(r => r.rubricScore);
+            const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+            const max = Math.max(...scores);
+            const min = Math.min(...scores);
+            
+            // Calculate Standard Deviation
+            const variance = scores.reduce((sum, s) => sum + Math.pow(s - avg, 2), 0) / scores.length;
+            const stdDev = Math.sqrt(variance);
+            const isUnstable = stdDev > 0.25;
+
+            const benchmarkReport = `
+| Run | Rubric Mark Awarded (/5.0) |
+| --- | --- |
+| Run 1 | ${scores[0].toFixed(2)} |
+| Run 2 | ${scores[1].toFixed(2)} |
+| Run 3 | ${scores[2].toFixed(2)} |
+
+**Consistency Metrics:**
+- **Average Mark**: ${avg.toFixed(2)} / 5.0
+- **Maximum Mark**: ${max.toFixed(2)}
+- **Minimum Mark**: ${min.toFixed(2)}
+- **Standard Deviation**: ${stdDev.toFixed(3)}
+- **Stability Status**: ${isUnstable ? '⚠️ UNSTABLE (Deviation exceeds ±0.25 marks)' : '✅ STABLE'}
+
+${isUnstable ? '> [!WARNING]\n> The prompt has been flagged as UNSTABLE. Please tune the scoring rules or check context alignment.' : ''}
+
+---
+### RUN 1 DETAILED REPORT
+${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').trim()}
+`;
+            controller.enqueue(encoder.encode(benchmarkReport));
+            controller.close();
+          } catch (err: any) {
+            controller.error(err);
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Transfer-Encoding': 'chunked',
+        },
+      });
+    }
 
     // Call the multimodal stream from RAG Service
     const ocrStream = await evaluateAnswerMultimodalStream(

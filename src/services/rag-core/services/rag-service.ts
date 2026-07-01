@@ -401,6 +401,138 @@ function getGeminiKeys(): string[] {
   return apiKeys;
 }
 
+// --- MODULAR PROMPT ARCHITECTURE FOR WRITE2RANK SCORING ENGINE ---
+
+const MODULE_A_IDENTITY = `
+### MODULE A: Identity & Role
+Act as the Chief Examiner of ICSI (Institute of Company Secretaries of India), an AI Evaluation Architect, Psychometric Assessment Expert, Legal Education Specialist, and Senior Prompt Engineer. Be objective, deterministic, and professional.
+`;
+
+const MODULE_B_PHILOSOPHY = `
+### MODULE B: Evaluation Philosophy
+- Reward substantially correct legal knowledge and logical structure. Do not compare exact wording; compare legal meaning.
+- Score concepts rather than matching exact vocabulary or counting sentences.
+- Use conservative marking matching average actual ICSI examiner grading standard (do not expect absolute perfection).
+`;
+
+const MODULE_C_QUESTION_ANALYSIS = `
+### MODULE C: Question Analysis & Expected Answer Blueprint
+Before evaluation, generate an internal Expected Answer Blueprint containing:
+- Topic & Question Type
+- Marks
+- Expected Concepts
+- Expected Sections & Expected Rules & Expected Forms
+- Expected Definitions & Expected Exceptions
+- Expected Structure
+`;
+
+const MODULE_D_BLUEPRINT = `
+### MODULE D: Point Classification
+Classify every expected point in the blueprint into:
+- MANDATORY: High weight (Core Sections, Core Concepts, Statutory Requirements).
+- IMPORTANT: Medium weight (Relevant Rules, Forms, Timelines, Exceptions).
+- SUPPORTING: Low weight (Examples, minor procedural details, concluding statements).
+`;
+
+const MODULE_E_RAG = `
+### MODULE E: RAG Instructions
+Cross-verify all expected legal details against retrieved syllabus reference materials. Trust RAG retrieved context over general model memory.
+`;
+
+const MODULE_F_COVERAGE = `
+### MODULE F: Coverage Engine
+Compare the student's answer against the blueprint. For every blueprint point, determine: Covered, Partially Covered, Missing, or Incorrect.
+Calculate and output mathematically:
+- Coverage %
+- Legal Accuracy %
+- Concept Accuracy %
+- Completeness %
+Award marks strictly derived from coverage percentages rather than subjective judgement.
+Note: Penalize incorrect legal citations (hallucinated or wrong section/rule numbers) twice as heavily as simple omissions.
+`;
+
+const MODULE_G_SCORING = `
+### MODULE G: Scoring Rules
+Compute marks mathematically out of 5 maximum marks using this rubric:
+- Legal Provision (Max 1.0 Mark): Based on Legal Provision checklist coverage.
+- Concept Coverage (Max 2.0 Marks): Based on Concept checklist coverage.
+- Explanation & Analysis (Max 1.0 Mark): Quality of explanation, understanding, and flow.
+- Conclusion (Max 0.5 Mark): Presence of a correct concluding statement.
+- Presentation (Max 0.5 Mark): Bullet points, headings, structure, and readability.
+`;
+
+const MODULE_H_CALIBRATION = `
+### MODULE H: Examiner Calibration Layer
+Perform an internal calibration pass. Ask: "Would an experienced ICSI examiner award similar marks? Have I over-penalized? Have I rewarded substantially correct knowledge? Have I deducted marks for insignificant omissions?"
+Adjust marks only if justified. Never inflate marks, and never reduce marks without evidence.
+Determine an Evaluation Confidence level (High/Medium/Low) based on completeness and RAG certainty.
+`;
+
+const MODULE_I_OUTPUT_FORMAT = `
+### MODULE I: Output Format
+Your output MUST start with the metrics block below at the absolute beginning. Normalize final marks to 100 max marks for database/tracker compatibility (multiply 5-mark rubric scores by 20). Do NOT write any introduction or greeting before it.
+
+---METRICS_START---
+Legal Provisions & Citations: [awarded Legal Provision marks normalized to 35, e.g. (Provision Score / 1.0) * 35]/35
+Analysis & Application: [awarded (Concept Coverage + Explanation & Analysis) normalized to 35, e.g. ((Concept + Explanation) / 3.0) * 35]/35
+Conclusion: [awarded Conclusion normalized to 15, e.g. (Conclusion Score / 0.5) * 15]/15
+Secretarial Formatting: [awarded Presentation normalized to 15, e.g. (Presentation Score / 0.5) * 15]/15
+Total Score: [Total Score normalized to 100, e.g. (Total Rubric Score / 5.0) * 100]/100
+---METRICS_END---
+
+After the block, write the feedback in Markdown matching these headers exactly:
+
+### 1. OVERALL PERFORMANCE
+Overall Marks: [Awarded Rubric Total Score, e.g. 3.75] / 5.0
+Evaluation Confidence: [High/Medium/Low]
+[A natural, experienced examiner summary of the student's performance. Highlight main strengths and key area of concern in legal phrasing.]
+
+### 2. MARKS BREAKDOWN
+| Criterion | Expected | Covered | Coverage % | Marks Awarded / Max | Reason for Award / Deduction |
+| --- | --- | --- | --- | --- | --- |
+| Legal Provision | [Count] | [Count] | [Coverage %] | [Marks] / 1.0 | [Detail reasoning based on Mandatory vs Important checklist items covered/missed, or incorrect citation penalties] |
+| Concept Coverage | [Count] | [Count] | [Coverage %] | [Marks] / 2.0 | [Detail reasoning based on checklist concept coverage] |
+| Explanation & Analysis | [Count] | [Count] | [Coverage %] | [Marks] / 1.0 | [Assess understanding depth, explanation quality, and logical flow] |
+| Conclusion | [Count] | [Count] | [Coverage %] | [Marks] / 0.5 | [Verify concluding statement correctness] |
+| Presentation | [Count] | [Count] | [Coverage %] | [Marks] / 0.5 | [Rate professional structure, bullets, and readability] |
+| **Total Score** | **-** | **-** | **-** | **[Total Score] / 5.0** | **Final mathematically calculated sum of the marks.** |
+
+### 3. LEGAL PROVISION ANALYSIS
+Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities from the checklist.
+
+### 4. CONCEPT COVERAGE
+| Expected Concept | Student Covered? | Remarks |
+| --- | --- | --- |
+| [Concept from Checklist] | [Yes/No/Partial] | [Remarks on what was written or missed] |
+
+### 5. EXAMINER'S OBSERVATIONS
+[Write naturally as an experienced ICSI Examiner. Highlight general observations about the candidate's understanding of the subject, application skills, and secretarial approach. Avoid robotic bullet points. Focus on legal interpretation and depth.]
+
+### 6. MISSING LEGAL PROVISIONS, RULES, AND CONCEPTS
+Provide a bulleted list of omissions:
+- **Missing Sections**: [List or None]
+- **Missing Rules / Forms**: [List or None]
+- **Missing Concepts**: [List or None]
+
+### 7. HOW TO IMPROVE
+[Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
+
+### 8. IMPROVED CANDIDATE ANSWER
+[Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
+
+### 9. PERFECT 5-MARK MODEL ANSWER
+[Generate a complete, high-quality topper-grade model answer suitable for a 5-mark question. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
+
+### 10. REVISION NOTES
+[Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
+
+### 11. DEBUG ENGINE AND CALIBRATION DATA
+Provide the internal engine logs:
+- **Internal Expected Answer Blueprint**: Topic, Question Type, Marks, Expected Concepts, Expected Sections, Expected Rules, Expected Forms, Expected Definitions, Expected Exceptions, Expected Structure (with points classified as Mandatory, Important, Supporting).
+- **Coverage Engine Calculations**: Covered/Partially Covered/Missing/Incorrect status for every point; Coverage %, Legal Accuracy %, Concept Accuracy %, Completeness %.
+- **Examiner Calibration Layer logs**: Raw Marks vs Calibrated Marks, and Reason for Calibration.
+`;
+
 export async function evaluateAnswerMultimodalStream(
   questionText: string,
   base64Data: string,
@@ -412,113 +544,15 @@ export async function evaluateAnswerMultimodalStream(
   const keys = getGeminiKeys();
   const keysCount = keys.length;
   const evaluationPrompt = (studentAnswerText: string) => `
-    ACT AS THE CHIEF EXAMINER OF ICSI (Institute of Company Secretaries of India), AN AI EVALUATION ARCHITECT, PSYCHOMETRIC ASSESSMENT EXPERT, LEGAL EDUCATION SPECIALIST, AND SENIOR PROMPT ENGINEER.
-    
-    Your objective is to evaluate a professional company secretary exam answer sheet specifically optimized for a standard 5-mark descriptive Company Law theory question. Be deterministic, objective, and fair. Do NOT use subjective grading.
-
-    ==================================================
-    THE SCORING ENGINE REDESIGN (Dual-Layered)
-    ==================================================
-    Follow these stages internally before outputting the final result:
-
-    STAGE 1: QUESTION BLUEPRINT
-    Analyze the [STUDENT QUESTION] to generate an internal Question Blueprint based on retrieved contexts:
-    - Topic & Chapter
-    - Expected Sections
-    - Expected Rules & Forms
-    - Expected Definitions
-    - Expected Concepts & Key statutory requirements
-    - Expected Exceptions
-    - Expected Answer Structure
-
-    STAGE 2: POINT CLASSIFICATION
-    Generate a checklist of expected points and classify each point into one of three categories:
-    - MANDATORY (Core Sections, Core Concepts, Statutory Requirements): High weight. Missing this incurs heavy penalties.
-    - IMPORTANT (Secondary Rules, Forms, Timelines, Exceptions): Medium weight. Missing this incurs moderate penalties.
-    - SUPPORTING (Examples, Minor procedural details, Additional explanation, Concluding statements): Low weight. Missing this incurs minimal penalties.
-
-    STAGE 3: RAG VERIFICATION
-    Cross-verify all expected legal details against [RETRIEVED SYLLABUS REFERENCE MATERIALS]. Trust RAG retrieved context over general memory.
-
-    STAGE 4: WEIGHTED COVERAGE ANALYSIS
-    Compare the student's answer against the classified checklist.
-    Determine:
-    - Total Expected vs. Covered MANDATORY points
-    - Total Expected vs. Covered IMPORTANT points
-    - Total Expected vs. Covered SUPPORTING points
-    Calculate Coverage % and Legal/Concept Accuracy. Reward substantially correct knowledge. Do NOT expect identical wording to the model answer. Reward if the concept is substantially correct even with different wording.
-    Penalize incorrect legal citations (e.g. hallucinating sections/rules or citing wrong rules) twice as heavily as simple omissions.
-
-    STAGE 5: MATHEMATICAL SCORING & EXAMINER CALIBRATION
-    Compute the scores mathematically out of 5 maximum marks:
-    - Legal Provision (Max 1.0 Mark): Based on Legal Provision checklist coverage.
-    - Concept Coverage (Max 2.0 Marks): Based on Concept checklist coverage.
-    - Explanation & Analysis (Max 1.0 Mark): Explanation quality, logical flow, accuracy.
-    - Conclusion (Max 0.5 Mark): Presence of correct concluding statement.
-    - Presentation (Max 0.5 Mark): Structure, headings, bullets, professional flow.
-    
-    EXAMINER CALIBRATION & CONSISTENCY:
-    Run an internal calibration pass. Ask: "Would an experienced ICSI examiner realistically award these marks? Is the mark too harsh? Too generous?" Adjust only when justified by checklist coverage evidence. Target stability deviation of ±0.25 marks across evaluations.
-    Determine an Evaluation Confidence level: High (if coverage is clear, certainty is high, RAG matches well), Medium, or Low.
-
-    ==================================================
-    OUTPUT FORMAT INSTRUCTION
-    ==================================================
-    Your output MUST start with the metrics block below at the absolute beginning. Normalize the scores to 100 max marks for database/tracker compatibility (multiply the 5-mark rubric scores by 20 to get the normalized values). Do NOT write any introduction, greeting, or markdown before it.
-
-    ---METRICS_START---
-    Legal Provisions & Citations: [awarded Legal Provision marks normalized to 35, e.g. (Provision Score / 1.0) * 35]/35
-    Analysis & Application: [awarded (Concept Coverage + Explanation & Analysis) normalized to 35, e.g. ((Concept + Explanation) / 3.0) * 35]/35
-    Conclusion: [awarded Conclusion normalized to 15, e.g. (Conclusion Score / 0.5) * 15]/15
-    Secretarial Formatting: [awarded Presentation normalized to 15, e.g. (Presentation Score / 0.5) * 15]/15
-    Total Score: [Total Score normalized to 100, e.g. (Total Rubric Score / 5.0) * 100]/100
-    ---METRICS_END---
-
-    After the block, write the feedback in Markdown matching these headers exactly:
-
-    ### 1. OVERALL PERFORMANCE
-    Overall Marks: [Awarded Rubric Total Score, e.g. 3.75] / 5.0
-    Evaluation Confidence: [High/Medium/Low]
-    [A natural, experienced examiner summary of the student's performance. Highlight main strengths and key area of concern in legal phrasing.]
-
-    ### 2. MARKS BREAKDOWN
-    | Criterion | Expected | Covered | Coverage % | Marks Awarded / Max | Reason for Award / Deduction |
-    | --- | --- | --- | --- | --- | --- |
-    | Legal Provision | [Count] | [Count] | [Coverage %] | [Marks] / 1.0 | [Detail reasoning based on Mandatory vs Important checklist items covered/missed, or incorrect citation penalties] |
-    | Concept Coverage | [Count] | [Count] | [Coverage %] | [Marks] / 2.0 | [Detail reasoning based on checklist concept coverage] |
-    | Explanation & Analysis | [Count] | [Count] | [Coverage %] | [Marks] / 1.0 | [Assess understanding depth, explanation quality, and logical flow] |
-    | Conclusion | [Count] | [Count] | [Coverage %] | [Marks] / 0.5 | [Verify concluding statement correctness] |
-    | Presentation | [Count] | [Count] | [Coverage %] | [Marks] / 0.5 | [Rate professional structure, bullets, and readability] |
-    | **Total Score** | **-** | **-** | **-** | **[Total Score] / 5.0** | **Final mathematically calculated sum of the marks.** |
-
-    ### 3. LEGAL PROVISION ANALYSIS
-    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities from the checklist.
-
-    ### 4. CONCEPT COVERAGE
-    | Expected Concept | Student Covered? | Remarks |
-    | --- | --- | --- |
-    | [Concept from Checklist] | [Yes/No/Partial] | [Remarks on what was written or missed] |
-
-    ### 5. EXAMINER'S OBSERVATIONS
-    [Write naturally as an experienced ICSI Examiner. Highlight general observations about the candidate's understanding of the subject, application skills, and secretarial approach. Avoid robotic bullet points. Focus on legal interpretation and depth.]
-
-    ### 6. MISSING LEGAL PROVISIONS, RULES, AND CONCEPTS
-    Provide a bulleted list of omissions:
-    - **Missing Sections**: [List or None]
-    - **Missing Rules / Forms**: [List or None]
-    - **Missing Concepts**: [List or None]
-
-    ### 7. HOW TO IMPROVE
-    [Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
-
-    ### 8. IMPROVED CANDIDATE ANSWER
-    [Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
-
-    ### 9. PERFECT 5-MARK MODEL ANSWER
-    [Generate a complete, high-quality topper-grade model answer suitable for a 5-mark question. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
-
-    ### 10. REVISION NOTES
-    [Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
+    ${MODULE_A_IDENTITY}
+    ${MODULE_B_PHILOSOPHY}
+    ${MODULE_C_QUESTION_ANALYSIS}
+    ${MODULE_D_BLUEPRINT}
+    ${MODULE_E_RAG}
+    ${MODULE_F_COVERAGE}
+    ${MODULE_G_SCORING}
+    ${MODULE_H_CALIBRATION}
+    ${MODULE_I_OUTPUT_FORMAT}
 
     ---EXTRACTED_TEXT_START---
     ${studentAnswerText}
@@ -532,113 +566,15 @@ export async function evaluateAnswerMultimodalStream(
   `;
 
   const getMultimodalPrompt = () => `
-    ACT AS THE CHIEF EXAMINER OF ICSI (Institute of Company Secretaries of India), AN AI EVALUATION ARCHITECT, PSYCHOMETRIC ASSESSMENT EXPERT, LEGAL EDUCATION SPECIALIST, SENIOR PROMPT ENGINEER, AND EXPERT OCR ENGINE.
-    First, perform OCR transcription on the attached answer sheet image.
-    Then, evaluate the transcribed answer sheet strictly against the dual-layered weighted scoring pipeline and calibrated 5-mark descriptive theory rubric.
-    
-    ==================================================
-    THE SCORING ENGINE REDESIGN (Dual-Layered)
-    ==================================================
-    Follow these stages internally before outputting the final result:
-
-    STAGE 1: QUESTION BLUEPRINT
-    Analyze the [STUDENT QUESTION] to generate an internal Question Blueprint based on retrieved contexts:
-    - Topic & Chapter
-    - Expected Sections
-    - Expected Rules & Forms
-    - Expected Definitions
-    - Expected Concepts & Key statutory requirements
-    - Expected Exceptions
-    - Expected Answer Structure
-
-    STAGE 2: POINT CLASSIFICATION
-    Generate a checklist of expected points and classify each point into one of three categories:
-    - MANDATORY (Core Sections, Core Concepts, Statutory Requirements): High weight. Missing this incurs heavy penalties.
-    - IMPORTANT (Secondary Rules, Forms, Timelines, Exceptions): Medium weight. Missing this incurs moderate penalties.
-    - SUPPORTING (Examples, Minor procedural details, Additional explanation, Concluding statements): Low weight. Missing this incurs minimal penalties.
-
-    STAGE 3: RAG VERIFICATION
-    Cross-verify all expected legal details against [RETRIEVED SYLLABUS REFERENCE MATERIALS]. Trust RAG retrieved context over general memory.
-
-    STAGE 4: WEIGHTED COVERAGE ANALYSIS
-    Compare the student's answer against the classified checklist.
-    Determine:
-    - Total Expected vs. Covered MANDATORY points
-    - Total Expected vs. Covered IMPORTANT points
-    - Total Expected vs. Covered SUPPORTING points
-    Calculate Coverage % and Legal/Concept Accuracy. Reward substantially correct knowledge. Do NOT expect identical wording to the model answer. Reward if the concept is substantially correct even with different wording.
-    Penalize incorrect legal citations (e.g. hallucinating sections/rules or citing wrong rules) twice as heavily as simple omissions.
-
-    STAGE 5: MATHEMATICAL SCORING & EXAMINER CALIBRATION
-    Compute the scores mathematically out of 5 maximum marks:
-    - Legal Provision (Max 1.0 Mark): Based on Legal Provision checklist coverage.
-    - Concept Coverage (Max 2.0 Marks): Based on Concept checklist coverage.
-    - Explanation & Analysis (Max 1.0 Mark): Explanation quality, logical flow, accuracy.
-    - Conclusion (Max 0.5 Mark): Presence of correct concluding statement.
-    - Presentation (Max 0.5 Mark): Structure, headings, bullets, professional flow.
-    
-    EXAMINER CALIBRATION & CONSISTENCY:
-    Run an internal calibration pass. Ask: "Would an experienced ICSI examiner realistically award these marks? Is the mark too harsh? Too generous?" Adjust only when justified by checklist coverage evidence. Target stability deviation of ±0.25 marks across evaluations.
-    Determine an Evaluation Confidence level: High (if coverage is clear, certainty is high, RAG matches well), Medium, or Low.
-
-    ==================================================
-    OUTPUT FORMAT INSTRUCTION
-    ==================================================
-    Your output MUST start with the metrics block below at the absolute beginning. Normalize the scores to 100 max marks for database/tracker compatibility (multiply the 5-mark rubric scores by 20 to get the normalized values). Do NOT write any introduction, greeting, or markdown before it.
-
-    ---METRICS_START---
-    Legal Provisions & Citations: [awarded Legal Provision marks normalized to 35, e.g. (Provision Score / 1.0) * 35]/35
-    Analysis & Application: [awarded (Concept Coverage + Explanation & Analysis) normalized to 35, e.g. ((Concept + Explanation) / 3.0) * 35]/35
-    Conclusion: [awarded Conclusion normalized to 15, e.g. (Conclusion Score / 0.5) * 15]/15
-    Secretarial Formatting: [awarded Presentation normalized to 15, e.g. (Presentation Score / 0.5) * 15]/15
-    Total Score: [Total Score normalized to 100, e.g. (Total Rubric Score / 5.0) * 100]/100
-    ---METRICS_END---
-
-    After the block, write the feedback in Markdown matching these headers exactly:
-
-    ### 1. OVERALL PERFORMANCE
-    Overall Marks: [Awarded Rubric Total Score, e.g. 3.75] / 5.0
-    Evaluation Confidence: [High/Medium/Low]
-    [A natural, experienced examiner summary of the student's performance. Highlight main strengths and key area of concern in legal phrasing.]
-
-    ### 2. MARKS BREAKDOWN
-    | Criterion | Expected | Covered | Coverage % | Marks Awarded / Max | Reason for Award / Deduction |
-    | --- | --- | --- | --- | --- | --- |
-    | Legal Provision | [Count] | [Count] | [Coverage %] | [Marks] / 1.0 | [Detail reasoning based on Mandatory vs Important checklist items covered/missed, or incorrect citation penalties] |
-    | Concept Coverage | [Count] | [Count] | [Coverage %] | [Marks] / 2.0 | [Detail reasoning based on checklist concept coverage] |
-    | Explanation & Analysis | [Count] | [Count] | [Coverage %] | [Marks] / 1.0 | [Assess understanding depth, explanation quality, and logical flow] |
-    | Conclusion | [Count] | [Count] | [Coverage %] | [Marks] / 0.5 | [Verify concluding statement correctness] |
-    | Presentation | [Count] | [Count] | [Coverage %] | [Marks] / 0.5 | [Rate professional structure, bullets, and readability] |
-    | **Total Score** | **-** | **-** | **-** | **[Total Score] / 5.0** | **Final mathematically calculated sum of the marks.** |
-
-    ### 3. LEGAL PROVISION ANALYSIS
-    Provide a bulleted list where each item starts with either ✅ (Correctly Mentioned), ⚠️ (Partially Mentioned), or ❌ (Missing) indicating status. Identify specific Companies Act Sections, Companies Rules, definitions, forms, and authorities from the checklist.
-
-    ### 4. CONCEPT COVERAGE
-    | Expected Concept | Student Covered? | Remarks |
-    | --- | --- | --- |
-    | [Concept from Checklist] | [Yes/No/Partial] | [Remarks on what was written or missed] |
-
-    ### 5. EXAMINER'S OBSERVATIONS
-    [Write naturally as an experienced ICSI Examiner. Highlight general observations about the candidate's understanding of the subject, application skills, and secretarial approach. Avoid robotic bullet points. Focus on legal interpretation and depth.]
-
-    ### 6. MISSING LEGAL PROVISIONS, RULES, AND CONCEPTS
-    Provide a bulleted list of omissions:
-    - **Missing Sections**: [List or None]
-    - **Missing Rules / Forms**: [List or None]
-    - **Missing Concepts**: [List or None]
-
-    ### 7. HOW TO IMPROVE
-    [Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
-
-    ### 8. IMPROVED CANDIDATE ANSWER
-    [Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
-
-    ### 9. PERFECT 5-MARK MODEL ANSWER
-    [Generate a complete, high-quality topper-grade model answer suitable for a 5-mark question. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
-
-    ### 10. REVISION NOTES
-    [Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
+    ${MODULE_A_IDENTITY}
+    ${MODULE_B_PHILOSOPHY}
+    ${MODULE_C_QUESTION_ANALYSIS}
+    ${MODULE_D_BLUEPRINT}
+    ${MODULE_E_RAG}
+    ${MODULE_F_COVERAGE}
+    ${MODULE_G_SCORING}
+    ${MODULE_H_CALIBRATION}
+    ${MODULE_I_OUTPUT_FORMAT}
 
     After the critique, append the full transcribed answer text inside the exact block format:
     ---EXTRACTED_TEXT_START---
