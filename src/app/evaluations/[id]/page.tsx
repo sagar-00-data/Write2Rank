@@ -63,7 +63,9 @@ function parseCritique(markdown: string): CritiqueSections {
 
 interface RubricRow {
   criterion: string;
-  maxMarks: string;
+  expected: string;
+  covered: string;
+  coveragePercent: string;
   awardedMarks: string;
   reason: string;
 }
@@ -76,15 +78,17 @@ function parseMarkdownTable(tableMarkdown: string): RubricRow[] {
     if (!line.includes('|')) continue;
     if (line.includes('---')) continue;
     const cols = line.split('|').map(c => c.trim()).filter(Boolean);
-    if (cols.length < 3) continue;
+    if (cols.length < 5) continue;
     if (cols[0].toLowerCase().includes('criterion')) continue;
     if (cols[0].toLowerCase().includes('total')) continue;
     
     rows.push({
       criterion: cols[0],
-      maxMarks: cols[1],
-      awardedMarks: cols[2],
-      reason: cols[3] || 'N/A'
+      expected: cols[1],
+      covered: cols[2],
+      coveragePercent: cols[3],
+      awardedMarks: cols[4],
+      reason: cols[5] || 'N/A'
     });
   }
   
@@ -631,12 +635,14 @@ export default function EvaluationDetail() {
                   <div style={{ padding: '28px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
                     <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Marks Breakdown Rubric</h4>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                         <thead>
                           <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                             <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Criterion</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center', width: '90px' }}>Max Marks</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center', width: '90px' }}>Awarded</th>
+                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center' }}>Expected</th>
+                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center' }}>Covered</th>
+                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center' }}>Coverage %</th>
+                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center', width: '110px' }}>Awarded</th>
                             <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Reasoning & Evidence</th>
                           </tr>
                         </thead>
@@ -644,7 +650,9 @@ export default function EvaluationDetail() {
                           {parseMarkdownTable(parsed.marksBreakdown).map((row, idx) => (
                             <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                               <td style={{ padding: '12px 8px', fontWeight: 600, color: '#334155' }}>{row.criterion}</td>
-                              <td style={{ padding: '12px 8px', textAlign: 'center', color: '#64748b' }}>{row.maxMarks}</td>
+                              <td style={{ padding: '12px 8px', textAlign: 'center', color: '#64748b' }}>{row.expected}</td>
+                              <td style={{ padding: '12px 8px', textAlign: 'center', color: '#64748b' }}>{row.covered}</td>
+                              <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>{row.coveragePercent}</td>
                               <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{row.awardedMarks}</td>
                               <td style={{ padding: '12px 8px', color: '#475569', lineHeight: '1.5' }}>{row.reason}</td>
                             </tr>

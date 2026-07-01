@@ -47,22 +47,22 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-transparent text-white flex flex-col items-center justify-center p-6">
-        <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mb-4 opacity-80" />
-        <p className="text-zinc-500 text-sm font-medium tracking-wide">Querying user registry...</p>
+      <div className="flex flex-col items-center justify-center p-12 text-center" style={{ minHeight: '40vh' }}>
+        <RefreshCw className="h-6 w-6 text-indigo-400 animate-spin mb-4 opacity-85" />
+        <p className="text-zinc-400 text-xs font-semibold font-mono tracking-wider uppercase">Querying user registry...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-transparent text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-full mb-6">
-          <AlertTriangle className="h-10 w-10 text-red-400" />
+      <div className="fd-card flex flex-col items-center justify-center text-center p-12" style={{ maxWidth: 500, margin: '40px auto' }}>
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-full mb-4">
+          <AlertTriangle className="h-6 w-6 text-red-400" />
         </div>
-        <h3 className="text-xl font-semibold tracking-tight">Directory Sync Failed</h3>
-        <p className="text-zinc-500 text-sm max-w-md mt-2">{error}</p>
-        <button onClick={fetchUsers} className="mt-8 px-5 py-2.5 bg-white text-black hover:bg-zinc-200 rounded-xl text-sm font-semibold transition-all">
+        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Directory Sync Failed</h3>
+        <p className="text-zinc-400 text-xs mt-2 leading-relaxed">{error}</p>
+        <button onClick={fetchUsers} className="fd-btn-primary mt-6">
           Retry Sync
         </button>
       </div>
@@ -70,31 +70,11 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/5 pb-6 gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-white flex items-center gap-2.5 tracking-tight">
-            <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
-              <Users className="h-4 w-4 text-indigo-400" />
-            </div>
-            Beta User Registry
-          </h1>
-          <p className="text-zinc-500 text-sm mt-2 font-medium">Closed beta user profiles, account creation dates, and activity statistics.</p>
-        </div>
-        <button 
-          onClick={fetchUsers}
-          className="px-4 py-2.5 bg-[#111] hover:bg-[#1a1a1a] border border-white/10 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white transition-all flex items-center gap-2 shadow-sm"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh Registry
-        </button>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-[#0a0a0a] p-2 border border-white/5 rounded-2xl">
+    <div className="space-y-6">
+      {/* Search and Filters Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 bg-[#090d16]/40 p-2 border border-white/[0.04] rounded-xl items-stretch">
         <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
             <Search className="h-4 w-4" />
           </div>
           <input
@@ -102,92 +82,94 @@ export default function AdminUsersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email, or exact UUID..."
-            className="w-full bg-transparent text-white rounded-xl py-3 pl-11 pr-4 outline-none text-sm placeholder-zinc-600 transition-colors focus:bg-white/[0.02]"
+            className="fd-input pl-10"
           />
         </div>
-        <div className="flex items-center justify-center bg-white/[0.02] border border-white/5 rounded-xl px-5 text-xs font-semibold text-zinc-400 whitespace-nowrap">
-          {filteredUsers.length} active records
+        <div className="flex items-center justify-center bg-white/5 border border-white/10 rounded-lg px-4 text-xs font-mono font-bold text-zinc-400 whitespace-nowrap">
+          {filteredUsers.length} RECORDS MATCHED
         </div>
       </div>
 
       {/* User Directory Table */}
-      <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden shadow-lg">
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-[#111] border-b border-white/5 text-zinc-500 uppercase tracking-widest text-[10px] font-semibold">
-                <th className="px-6 py-4">User Details</th>
-                <th className="px-6 py-4">UUID Reference</th>
-                <th className="px-6 py-4">Sign Up Date</th>
-                <th className="px-6 py-4">Last Active</th>
-                <th className="px-6 py-4 text-center">Evaluations</th>
-                <th className="px-6 py-4 text-right">Account Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-zinc-300">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3.5">
-                      {user.profilePhoto ? (
-                        <img src={user.profilePhoto} alt={user.name} className="w-9 h-9 rounded-full border border-white/10" />
-                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold text-xs shadow-inner">
-                          {user.name.charAt(0)}
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-semibold text-zinc-100 text-[13px]">{user.name}</div>
-                        <div className="text-zinc-500 text-[10px] mt-0.5 flex items-center gap-1.5 font-medium">
-                          <Mail className="h-3 w-3 opacity-70" /> {user.email}
-                        </div>
+      <div className="fd-table-wrapper">
+        <table className="fd-table">
+          <thead className="fd-table-header">
+            <tr>
+              <th>User Details</th>
+              <th>UUID Reference</th>
+              <th>Sign Up Date</th>
+              <th>Last Active</th>
+              <th style={{ textAlign: 'center' }}>Evaluations</th>
+              <th style={{ textAlign: 'right' }}>Account Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.map((user) => (
+              <tr key={user.id} className="fd-table-row">
+                <td>
+                  <div className="flex items-center gap-3">
+                    {user.profilePhoto ? (
+                      <img src={user.profilePhoto} alt={user.name} className="w-8 h-8 rounded-full border border-white/10" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold text-[11px] shadow-inner">
+                        {user.name.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-semibold text-zinc-100 text-[13px]">{user.name}</div>
+                      <div className="text-zinc-500 text-[10px] mt-0.5 flex items-center gap-1.5 font-medium">
+                        <Mail className="h-3 w-3 opacity-70" /> {user.email}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 font-mono text-[10px] text-zinc-500 font-medium">
-                    <span className="bg-white/5 px-2 py-1 rounded-md">{user.id}</span>
-                  </td>
-                  <td className="px-6 py-4 text-zinc-400">
-                    <div className="flex items-center gap-2 text-[11px] font-medium">
-                      <Calendar className="h-3.5 w-3.5 text-zinc-500" />
-                      {new Date(user.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-zinc-400">
-                    <div className="flex items-center gap-2 text-[11px] font-medium">
-                      <Activity className="h-3.5 w-3.5 text-indigo-400" />
-                      {new Date(user.lastLogin).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="inline-flex flex-col items-center">
-                      <span className="font-semibold text-zinc-100 text-[13px]">{user.totalEvals}</span>
-                      <span className="text-[9px] text-emerald-400 font-medium mt-0.5">{user.successfulEvals} OK • {user.failedEvals} Fail</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {user.totalEvals > 0 ? (
-                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] px-2.5 py-1 rounded-md font-semibold uppercase tracking-widest shadow-sm">
-                        Active Client
-                      </span>
-                    ) : (
-                      <span className="bg-white/5 text-zinc-500 border border-white/10 text-[9px] px-2.5 py-1 rounded-md font-semibold uppercase tracking-widest shadow-sm">
-                        Inactive
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filteredUsers.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 font-medium text-sm">
-                    No matching users found in registry.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </td>
+                <td className="font-mono text-[10px] text-zinc-500">
+                  <span className="bg-white/5 px-2 py-0.5 border border-white/5 rounded-md">{user.id}</span>
+                </td>
+                <td className="text-zinc-400 text-xs">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Calendar className="h-3.5 w-3.5 text-zinc-500" />
+                    {new Date(user.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </td>
+                <td className="text-zinc-400 text-xs">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Activity className="h-3.5 w-3.5 text-indigo-400" />
+                    {new Date(user.lastLogin).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <div className="inline-flex flex-col items-center">
+                    <span className="font-semibold text-zinc-100 text-[13px]">{user.totalEvals}</span>
+                    <span className="text-[9px] text-emerald-400 font-medium mt-0.5">{user.successfulEvals} OK • {user.failedEvals} Fail</span>
+                  </div>
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  {user.totalEvals > 0 ? (
+                    <span className="fd-status-pill green">
+                      Active Client
+                    </span>
+                  ) : (
+                    <span className="fd-status-pill grey" style={{ color: '#64748b', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      Inactive
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center text-zinc-500 font-medium py-12">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Users className="h-8 w-8 text-zinc-600 mb-2" />
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">No Beta Users Found</span>
+                    <span className="text-zinc-500 text-[11px] max-w-[280px]">No database users match the active search term query filters.</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

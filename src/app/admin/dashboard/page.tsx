@@ -297,25 +297,15 @@ export default function FounderOperationsCenter() {
   // ── LOADING STATE ──────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ padding: '32px 36px', maxWidth: 1700, margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
         <style>{CSS_STR}</style>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <Skeleton h={12} w="120px" r={6} />
-              <Skeleton h={28} w="320px" r={8} />
-              <Skeleton h={12} w="250px" r={6} />
-            </div>
-            <Skeleton h={38} w="140px" r={12} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} h={140} />)}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 300px', gap: 16 }}>
-            <Skeleton h={260} />
-            <Skeleton h={260} />
-            <Skeleton h={260} />
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} h={140} />)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 300px', gap: 16 }}>
+          <Skeleton h={260} />
+          <Skeleton h={260} />
+          <Skeleton h={260} />
         </div>
       </div>
     );
@@ -324,16 +314,12 @@ export default function FounderOperationsCenter() {
   // ── ERROR STATE ────────────────────────────────────────────
   if (error || !data) {
     return (
-      <div style={{ padding: '32px 36px', maxWidth: 1700, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
         <style>{CSS_STR}</style>
         <div style={{ textAlign: 'center', maxWidth: 480 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
           <h3 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 8 }}>Telemetry Disconnected</h3>
           <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 8, lineHeight: 1.7 }}>{error}</p>
-          <p style={{ color: C.textDim, fontSize: 11, marginBottom: 24, lineHeight: 1.6 }}>
-            If you see &quot;SUPABASE_SERVICE_ROLE_KEY missing&quot;, add it to .env.local from your Supabase Dashboard → Project Settings → API.
-            Then run the SQL in <code style={{ color: C.indigo }}>supabase_admin_policies.sql</code> in your Supabase SQL Editor.
-          </p>
           <button className="fd-btn-primary" onClick={() => fetchData()}>🔄 Reconnect</button>
         </div>
       </div>
@@ -347,232 +333,38 @@ export default function FounderOperationsCenter() {
   const chartCost = data.chartData.map(d => d.cost * 1000); // scale for visibility
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#06080c', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
       <style>{CSS_STR}</style>
 
-      {/* 1. TOP NAVIGATION BAR */}
-      <nav style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        height: '70px', 
-        background: 'rgba(9, 13, 22, 0.7)', 
-        backdropFilter: 'blur(16px)', 
-        WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
-        padding: '0 32px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        width: '100%'
-      }}>
-        {/* Left Side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Write2Rank Logo */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            background: 'linear-gradient(135deg, #4f46e5, #8b5cf6)',
-            borderRadius: '8px',
-            fontWeight: 800,
-            fontSize: '14px',
-            color: '#ffffff',
-            boxShadow: '0 0 12px rgba(79, 70, 229, 0.4)'
-          }}>
-            W
-          </div>
-          <span style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
-            Write2Rank
-          </span>
-          <span style={{ fontSize: '12px', fontWeight: 500, color: C.textDim }}>|</span>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: C.textMuted }}>
-            Founder Command Center
+      {/* Auto Refresh & Controls Panel */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginBottom: -12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(9, 13, 22, 0.4)', padding: '6px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Telemetry Polling</span>
+          <label className="fd-switch" style={{ position: 'relative', display: 'inline-block', width: '32px', height: '18px' }}>
+            <input 
+              type="checkbox" 
+              checked={autoRefresh} 
+              onChange={(e) => setAutoRefresh(e.target.checked)} 
+              style={{ opacity: 0, width: 0, height: 0 }}
+            />
+            <span className="fd-slider" />
+          </label>
+          <span style={{ fontSize: '10px', color: autoRefresh ? '#8b5cf6' : C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {autoRefresh ? '30s' : 'Off'}
           </span>
         </div>
+        <button
+          className="fd-btn-secondary"
+          disabled={refreshing}
+          onClick={() => fetchData(true)}
+          style={{ opacity: refreshing ? 0.7 : 1, padding: '6px 14px', borderRadius: '10px' }}
+        >
+          <span style={{ display: 'inline-block', animation: refreshing ? 'fd-spin 0.8s linear infinite' : 'none', marginRight: '4px' }}>⟳</span>
+          Sync
+        </button>
+      </div>
 
-        {/* Center Side: Navigation Items */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {[
-            { name: 'Dashboard', href: '/admin/dashboard', active: true },
-            { name: 'Users', href: '/admin/users' },
-            { name: 'Evaluations', href: '/admin/evaluations' },
-            { name: 'Analytics', href: '/admin/analytics' },
-            { name: 'OCR', href: '/admin/dashboard#ocr' },
-            { name: 'RAG', href: '/admin/dashboard#rag' },
-            { name: 'AI Cost', href: '/admin/dashboard#api-usage' },
-            { name: 'System Health', href: '/admin/settings#health' },
-            { name: 'Settings', href: '/admin/settings' },
-          ].map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              style={{
-                fontSize: '12px',
-                fontWeight: 600,
-                color: item.active ? '#ffffff' : C.textMuted,
-                padding: '8px 14px',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                background: item.active ? 'rgba(255,255,255,0.05)' : 'transparent',
-                border: item.active ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
-                transition: 'all 0.2s ease',
-              }}
-              className={item.active ? '' : 'fd-nav-item'}
-            >
-              {item.name}
-            </Link>
-          ))}
-        </div>
 
-        {/* Right Side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Production badge */}
-          <span style={{ 
-            fontSize: '9px', 
-            fontWeight: 800, 
-            color: '#10b981', 
-            background: 'rgba(16, 185, 129, 0.1)', 
-            border: '1px solid rgba(16, 185, 129, 0.25)', 
-            padding: '3px 10px', 
-            borderRadius: '99px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4
-          }}>
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-            Production
-          </span>
-          {/* Profile Dropdown / Log Out icon */}
-          <button 
-            onClick={handleLogout}
-            style={{ 
-              background: 'rgba(255,255,255,0.02)', 
-              border: '1px solid rgba(255,255,255,0.05)', 
-              color: C.textMuted, 
-              padding: '6px 12px', 
-              borderRadius: '8px', 
-              fontSize: '11px', 
-              fontWeight: 600, 
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-          >
-            Sign Out
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Content Body */}
-      <div style={{ padding: '40px 32px', maxWidth: 1700, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 32, width: '100%' }}>
-        
-        {/* 2. EXECUTIVE HEADER */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          flexWrap: 'wrap', 
-          gap: 24, 
-          paddingBottom: '8px'
-        }}>
-          <div>
-            <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.03em', marginBottom: '8px', lineHeight: 1.1 }}>
-              Founder Operations Center
-            </h1>
-            <p style={{ fontSize: '14px', color: C.textMuted, fontWeight: 500, margin: 0 }}>
-              Real-time operational intelligence for the Write2Rank platform.
-            </p>
-          </div>
-
-          {/* Operational Status Card */}
-          <div style={{ 
-            padding: '16px 20px', 
-            backgroundColor: '#090d16', 
-            border: '1px solid rgba(255, 255, 255, 0.05)', 
-            borderRadius: '16px',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 24
-          }}>
-            {/* Environment Badge */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Environment</span>
-              <span style={{ 
-                fontSize: '11px', 
-                fontWeight: 700, 
-                color: '#10b981', 
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5
-              }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                Production
-              </span>
-            </div>
-
-            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
-
-            {/* Sync metrics */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Last Sync</span>
-              <span style={{ fontSize: '12px', color: C.textMuted, fontWeight: 600, fontFamily: 'monospace' }}>
-                {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            </div>
-
-            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
-
-            {/* Time metric */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Current Time</span>
-              <span style={{ fontSize: '12px', color: '#ffffff', fontWeight: 700, fontFamily: 'monospace' }}>
-                {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            </div>
-
-            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
-
-            {/* Auto Refresh Toggle */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Auto Refresh</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {/* Premium Switch Switcher */}
-                <label className="fd-switch" style={{ position: 'relative', display: 'inline-block', width: '32px', height: '18px' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={autoRefresh} 
-                    onChange={(e) => setAutoRefresh(e.target.checked)} 
-                    style={{ opacity: 0, width: 0, height: 0 }}
-                  />
-                  <span className="fd-slider" />
-                </label>
-                <span style={{ fontSize: '10px', color: autoRefresh ? '#8b5cf6' : C.textDim, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {autoRefresh ? '30s' : 'Off'}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ width: '1px', height: '32px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
-
-            {/* Sync Now button */}
-            <button
-              className="fd-btn-secondary"
-              disabled={refreshing}
-              onClick={() => fetchData(true)}
-              style={{ opacity: refreshing ? 0.7 : 1, padding: '8px 14px', borderRadius: '10px' }}
-            >
-              <span style={{ display: 'inline-block', animation: refreshing ? 'fd-spin 0.8s linear infinite' : 'none', marginRight: '4px' }}>⟳</span>
-              {refreshing ? 'Syncing…' : 'Sync Now'}
-            </button>
-          </div>
-        </div>
 
         {/* 3. SECTION HEADER */}
         <div style={{ 
@@ -962,7 +754,6 @@ export default function FounderOperationsCenter() {
         <span style={{ fontSize: 10, color: C.textDim, fontFamily: 'monospace' }}>
           Generated {new Date(data.meta.generatedAt).toLocaleTimeString()}
         </span>
-      </div>
       </div>
     </div>
   );

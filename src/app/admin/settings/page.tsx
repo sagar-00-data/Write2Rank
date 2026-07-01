@@ -97,38 +97,30 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center">
-        <RefreshCw className="h-10 w-10 text-indigo-500 animate-spin mb-4" />
-        <p className="text-gray-400 text-sm">Gathering system health info...</p>
+      <div className="flex flex-col items-center justify-center p-12 text-center" style={{ minHeight: '40vh' }}>
+        <RefreshCw className="h-6 w-6 text-indigo-400 animate-spin mb-4 opacity-85" />
+        <p className="text-zinc-400 text-xs font-semibold font-mono tracking-wider uppercase">Gathering system health info...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="border-b border-gray-800 pb-6">
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <Settings className="h-5 w-5 text-indigo-400" /> Settings & System Health
-        </h1>
-        <p className="text-gray-400 text-xs mt-1">Configure global variables, check API failover parameters, and run connection checks.</p>
-      </div>
-
+    <div className="space-y-6">
       {/* System Connection Tests */}
-      <div id="health" className="bg-gray-900/30 border border-gray-800/60 rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+      <div id="health" className="fd-card space-y-4">
+        <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-white/[0.04] pb-3">
           <Server className="h-4 w-4 text-indigo-400" /> Infrastructure Integrations
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Supabase DB */}
-          <div className="bg-gray-950/60 p-4 border border-gray-900 rounded-xl flex flex-col justify-between gap-4">
+          <div className="bg-white/[0.01] p-4 border border-white/[0.04] rounded-xl flex flex-col justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-white font-semibold">
+              <div className="flex items-center gap-2 text-white font-semibold text-xs">
                 <Database className="h-4 w-4 text-emerald-400" />
                 <span>Supabase Database</span>
               </div>
-              <p className="text-[11px] text-gray-400 leading-normal">
+              <p className="text-[11px] text-zinc-400 leading-normal">
                 Stores user logs, student evaluations, and RAG knowledge embeddings.
               </p>
               {testResult.supabase && (
@@ -140,20 +132,20 @@ export default function AdminSettingsPage() {
             <button
               onClick={() => runConnectionTest('supabase')}
               disabled={testingConnection === 'supabase'}
-              className="w-full py-1.5 bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold rounded text-[11px] border border-gray-800 transition"
+              className="fd-btn-secondary w-full justify-center"
             >
               {testingConnection === 'supabase' ? 'Testing...' : 'Test Connection'}
             </button>
           </div>
 
           {/* Gemini AI API */}
-          <div className="bg-gray-950/60 p-4 border border-gray-900 rounded-xl flex flex-col justify-between gap-4">
+          <div className="bg-white/[0.01] p-4 border border-white/[0.04] rounded-xl flex flex-col justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-white font-semibold">
+              <div className="flex items-center gap-2 text-white font-semibold text-xs">
                 <Cpu className="h-4 w-4 text-indigo-400" />
                 <span>Gemini API Rotator</span>
               </div>
-              <p className="text-[11px] text-gray-400 leading-normal">
+              <p className="text-[11px] text-zinc-400 leading-normal">
                 Generates AI-powered rubric grading, feedback suggestions, and RAG analysis.
               </p>
               {testResult.gemini && (
@@ -165,20 +157,20 @@ export default function AdminSettingsPage() {
             <button
               onClick={() => runConnectionTest('gemini')}
               disabled={testingConnection === 'gemini'}
-              className="w-full py-1.5 bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold rounded text-[11px] border border-gray-800 transition"
+              className="fd-btn-secondary w-full justify-center"
             >
               {testingConnection === 'gemini' ? 'Testing...' : 'Check Status'}
             </button>
           </div>
 
           {/* OCR Space Fallback */}
-          <div className="bg-gray-950/60 p-4 border border-gray-900 rounded-xl flex flex-col justify-between gap-4">
+          <div className="bg-white/[0.01] p-4 border border-white/[0.04] rounded-xl flex flex-col justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-white font-semibold">
+              <div className="flex items-center gap-2 text-white font-semibold text-xs">
                 <Binary className="h-4 w-4 text-cyan-400" />
                 <span>OCR Space Engine</span>
               </div>
-              <p className="text-[11px] text-gray-400 leading-normal">
+              <p className="text-[11px] text-zinc-400 leading-normal">
                 Performs high-speed OCR extraction on handwritten/printed legal documents.
               </p>
               {testResult.ocr && (
@@ -190,7 +182,7 @@ export default function AdminSettingsPage() {
             <button
               onClick={() => runConnectionTest('ocr')}
               disabled={testingConnection === 'ocr'}
-              className="w-full py-1.5 bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold rounded text-[11px] border border-gray-800 transition"
+              className="fd-btn-secondary w-full justify-center"
             >
               {testingConnection === 'ocr' ? 'Testing...' : 'Verify Engine'}
             </button>
@@ -199,47 +191,55 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* Global Config Settings */}
-      <div className="bg-gray-900/30 border border-gray-800/60 rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+      <div className="fd-card space-y-4">
+        <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-white/[0.04] pb-3">
           <Key className="h-4 w-4 text-amber-400" /> Environment Configurations
         </h3>
 
-        <div className="bg-gray-950 border border-gray-900 rounded-lg overflow-hidden text-xs">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-900/50 border-b border-gray-900 text-gray-400 font-semibold uppercase text-[10px] tracking-wider">
-                <th className="px-4 py-2.5">Variable Name</th>
-                <th className="px-4 py-2.5">Configured Status</th>
-                <th className="px-4 py-2.5 text-right">Protection Status</th>
+        <div className="fd-table-wrapper">
+          <table className="fd-table">
+            <thead className="fd-table-header">
+              <tr>
+                <th>Variable Name</th>
+                <th>Configured Status</th>
+                <th style={{ textAlign: 'right' }}>Protection Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-900/50">
-                <td className="px-4 py-2.5 font-mono text-gray-300">ADMIN_PASSWORD</td>
-                <td className="px-4 py-2.5 text-emerald-400 font-medium">✓ Configured</td>
-                <td className="px-4 py-2.5 text-right text-gray-500 font-mono text-[10px]">Server-Only (HttpOnly Signature)</td>
-              </tr>
-              <tr className="border-b border-gray-900/50">
-                <td className="px-4 py-2.5 font-mono text-gray-300">NEXT_PUBLIC_SUPABASE_URL</td>
-                <td className="px-4 py-2.5 text-emerald-400 font-medium">✓ Configured</td>
-                <td className="px-4 py-2.5 text-right text-gray-500 font-mono text-[10px]">Public Client Available</td>
-              </tr>
-              <tr className="border-b border-gray-900/50">
-                <td className="px-4 py-2.5 font-mono text-gray-300">NEXT_PUBLIC_SUPABASE_ANON_KEY</td>
-                <td className="px-4 py-2.5 text-emerald-400 font-medium">✓ Configured</td>
-                <td className="px-4 py-2.5 text-right text-gray-500 font-mono text-[10px]">Public Client Available</td>
-              </tr>
-              <tr className="border-b border-gray-900/50">
-                <td className="px-4 py-2.5 font-mono text-gray-300">GEMINI_API_KEYS / GEMINI_API_KEY</td>
-                <td className="px-4 py-2.5 text-emerald-400 font-medium">
-                  ✓ Configured ({data?.apiKeys.activeKeys || 0} slots found)
+              <tr className="fd-table-row">
+                <td className="font-mono text-zinc-300 text-xs">ADMIN_PASSWORD</td>
+                <td>
+                  <span className="fd-status-pill green">Active</span>
                 </td>
-                <td className="px-4 py-2.5 text-right text-gray-500 font-mono text-[10px]">Server-Only (Rotated)</td>
+                <td style={{ textAlign: 'right' }} className="text-zinc-500 font-mono text-[10px]">Server-Only (HttpOnly Signature)</td>
               </tr>
-              <tr className="border-b border-gray-900/50">
-                <td className="px-4 py-2.5 font-mono text-gray-300">OCR_SPACE_API_KEY</td>
-                <td className="px-4 py-2.5 text-emerald-400 font-medium">✓ Configured</td>
-                <td className="px-4 py-2.5 text-right text-gray-500 font-mono text-[10px]">Server-Only</td>
+              <tr className="fd-table-row">
+                <td className="font-mono text-zinc-300 text-xs">NEXT_PUBLIC_SUPABASE_URL</td>
+                <td>
+                  <span className="fd-status-pill green">Active</span>
+                </td>
+                <td style={{ textAlign: 'right' }} className="text-zinc-500 font-mono text-[10px]">Public Client Available</td>
+              </tr>
+              <tr className="fd-table-row">
+                <td className="font-mono text-zinc-300 text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</td>
+                <td>
+                  <span className="fd-status-pill green">Active</span>
+                </td>
+                <td style={{ textAlign: 'right' }} className="text-zinc-500 font-mono text-[10px]">Public Client Available</td>
+              </tr>
+              <tr className="fd-table-row">
+                <td className="font-mono text-zinc-300 text-xs">GEMINI_API_KEYS / GEMINI_API_KEY</td>
+                <td>
+                  <span className="fd-status-pill green">Active ({data?.apiKeys.activeKeys || 0} slots found)</span>
+                </td>
+                <td style={{ textAlign: 'right' }} className="text-zinc-500 font-mono text-[10px]">Server-Only (Rotated)</td>
+              </tr>
+              <tr className="fd-table-row">
+                <td className="font-mono text-zinc-300 text-xs">OCR_SPACE_API_KEY</td>
+                <td>
+                  <span className="fd-status-pill green">Active</span>
+                </td>
+                <td style={{ textAlign: 'right' }} className="text-zinc-500 font-mono text-[10px]">Server-Only</td>
               </tr>
             </tbody>
           </table>
