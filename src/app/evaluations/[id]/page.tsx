@@ -861,7 +861,7 @@ export default function EvaluationDetail() {
                       <Award size={18} color="#d97706" /> ICSI Chief Examiner Observations
                     </h4>
                     <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', color: '#78350f', fontStyle: 'italic' }}>
-                      "{parsed.examinersObservations}"
+                      &ldquo;{parsed.examinersObservations}&rdquo;
                     </p>
                   </div>
                 )}

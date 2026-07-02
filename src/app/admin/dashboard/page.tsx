@@ -271,7 +271,10 @@ export default function FounderOperationsCenter() {
   };
 
   useEffect(() => {
-    fetchData();
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchData]);
 
   useEffect(() => {

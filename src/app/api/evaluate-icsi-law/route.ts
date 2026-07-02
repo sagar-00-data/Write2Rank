@@ -270,18 +270,28 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
             // Clean up the output markdown before saving to the DB so the user doesn't see the raw OCR section if they don't need to (or we can save it as is)
             const cleanMarkdown = fullGeneratedText.replace(/---EXTRACTED_TEXT_START---[\s\S]*?---EXTRACTED_TEXT_END---/, '').trim();
 
-            // Extract scores using Regex
+            // Extract scores using Regex with robust NaN fallback
             const provisionsMatch = cleanMarkdown.match(/Legal Provisions & Citations:\s*(\d+)/i);
             const analysisMatch = cleanMarkdown.match(/Analysis & Application:\s*(\d+)/i);
             const conclusionMatch = cleanMarkdown.match(/Conclusion:\s*(\d+)/i);
             const formattingMatch = cleanMarkdown.match(/Secretarial Formatting:\s*(\d+)/i);
             const totalScoreMatch = cleanMarkdown.match(/Total Score:\s*(\d+)/i);
 
-            const scoreProvisions = provisionsMatch ? parseInt(provisionsMatch[1], 10) : 0;
-            const scoreAnalysis = analysisMatch ? parseInt(analysisMatch[1], 10) : 0;
-            const scoreConclusion = conclusionMatch ? parseInt(conclusionMatch[1], 10) : 0;
-            const scoreFormatting = formattingMatch ? parseInt(formattingMatch[1], 10) : 0;
-            const totalScore = totalScoreMatch ? parseInt(totalScoreMatch[1], 10) : (scoreProvisions + scoreAnalysis + scoreConclusion + scoreFormatting);
+            const scoreProvisions = (provisionsMatch && !isNaN(parseInt(provisionsMatch[1], 10))) ? parseInt(provisionsMatch[1], 10) : 0;
+            const scoreAnalysis = (analysisMatch && !isNaN(parseInt(analysisMatch[1], 10))) ? parseInt(analysisMatch[1], 10) : 0;
+            const scoreConclusion = (conclusionMatch && !isNaN(parseInt(conclusionMatch[1], 10))) ? parseInt(conclusionMatch[1], 10) : 0;
+            const scoreFormatting = (formattingMatch && !isNaN(parseInt(formattingMatch[1], 10))) ? parseInt(formattingMatch[1], 10) : 0;
+            
+            let totalScore = 0;
+            if (totalScoreMatch && !isNaN(parseInt(totalScoreMatch[1], 10))) {
+              totalScore = parseInt(totalScoreMatch[1], 10);
+            } else {
+              totalScore = scoreProvisions + scoreAnalysis + scoreConclusion + scoreFormatting;
+            }
+            
+            // Limit score boundaries to valid schema values
+            totalScore = Math.max(0, Math.min(100, isNaN(totalScore) ? 0 : totalScore));
+
 
             const aiFeedbackObj = {
               markdown: cleanMarkdown,

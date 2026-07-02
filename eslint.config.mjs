@@ -13,6 +13,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "scratch/**",
+    "src/services/rag-core/scripts/**",
   ]),
   {
     rules: {

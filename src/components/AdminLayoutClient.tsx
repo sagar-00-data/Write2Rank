@@ -29,7 +29,10 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    setSyncTime(new Date().toLocaleTimeString());
+    const timer = setTimeout(() => {
+      setSyncTime(new Date().toLocaleTimeString());
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const menuItems = [
