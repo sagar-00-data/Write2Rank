@@ -95,6 +95,7 @@ export default function LoginPage() {
       {/* Right panel - Authentication Action using Clerk */}
       <div className="login-action-panel">
         <SignIn
+          path="/login"
           appearance={{
             variables: {
               colorPrimary: '#2563eb', // --accent-color
