@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Resolve User settings and quick action updates
-    let updateFields: Record<string, any> = {};
+    const updateFields: Record<string, any> = {};
 
     if (action === 'save_changes') {
       if (plan !== undefined) updateFields.plan = plan;

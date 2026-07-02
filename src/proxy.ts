@@ -1,6 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 import { verifySession } from './lib/session';
 
 // Define paths that require Clerk user authentication (excluding admin routes and login/api routes)

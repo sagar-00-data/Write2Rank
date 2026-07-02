@@ -46,13 +46,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user: clerkUser, isLoaded: isUserLoaded, isSignedIn } = useUser();
   const { signOut: clerkSignOut } = useClerkAuth();
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Derive loading state: loading until Clerk has resolved the session
+  const isLoading = !isUserLoaded;
 
   useEffect(() => {
-    if (!isUserLoaded) {
-      setIsLoading(true);
-      return;
-    }
+    if (!isUserLoaded) return;
 
     const syncAndSetUser = async () => {
       if (isSignedIn && clerkUser) {
@@ -71,7 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
 
         setUser(mappedUser);
-        setIsLoading(false);
 
         // Perform server-side profile syncing to Supabase database (bypasses RLS)
         try {
@@ -86,7 +84,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         setUser(null);
-        setIsLoading(false);
       }
     };
 
@@ -100,14 +97,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    setIsLoading(true);
     try {
       await clerkSignOut();
       setUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 

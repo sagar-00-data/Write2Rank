@@ -29,7 +29,7 @@ export async function getOrUpdateUserLimits(userId: string): Promise<UserLimitIn
   const todayStr = new Date().toISOString().split('T')[0];
 
   // 1. Fetch user from Supabase
-  let { data: user, error: fetchErr } = await supabaseServer
+  const { data: user, error: fetchErr } = await supabaseServer
     .from('users')
     .select('*')
     .eq('id', userId)
