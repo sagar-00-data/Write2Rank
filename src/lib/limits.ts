@@ -29,11 +29,13 @@ export async function getOrUpdateUserLimits(userId: string): Promise<UserLimitIn
   const todayStr = new Date().toISOString().split('T')[0];
 
   // 1. Fetch user from Supabase
-  const { data: user, error: fetchErr } = await supabaseServer
+  let user;
+  const { data, error: fetchErr } = await supabaseServer
     .from('users')
     .select('*')
     .eq('id', userId)
     .single();
+  user = data;
 
   if (fetchErr || !user) {
     console.warn(`[Limits] User record not found for ${userId}, querying by clerk_id...`);

@@ -28,7 +28,14 @@ export async function GET(request: Request) {
     }
     if (search) {
       // Support searching by name, email, id or clerk_id
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,id.eq.${search},clerk_id.eq.${search}`);
+      // Only include UUID/ID filters when search looks like an ID to prevent PostgREST errors
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isIdLike = uuidRegex.test(search) || search.startsWith('user_');
+      if (isIdLike) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,id.eq.${search},clerk_id.eq.${search}`);
+      } else {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
     }
 
     // Apply sorting
@@ -42,17 +49,23 @@ export async function GET(request: Request) {
     const { data: users, count, error: usersErr } = await query;
     if (usersErr) throw usersErr;
 
-    // Fetch plan defaults to calculate default limits on the frontend if needed
-    const { data: planConfigs } = await supabaseServer
-      .from('plan_configurations')
-      .select('*');
+    // Fetch plan defaults (graceful if table doesn't exist yet)
+    let planConfigs: any[] = [];
+    try {
+      const { data: configs } = await supabaseServer
+        .from('plan_configurations')
+        .select('*');
+      if (configs) planConfigs = configs;
+    } catch {
+      // plan_configurations table may not exist yet — use empty array
+    }
 
     return NextResponse.json({
       users: users || [],
       total: count || 0,
       page,
       limit,
-      planConfigs: planConfigs || []
+      planConfigs
     });
 
   } catch (err: any) {
