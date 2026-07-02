@@ -111,6 +111,20 @@ export default function Topbar({ toggleSidebar }: TopbarProps) {
                     <LifeBuoy size={16} /> Help & Support
                   </button>
                 </div>
+                
+                <div className="dropdown-divider" />
+                
+                <div className="dropdown-group">
+                  <button 
+                    className="dropdown-item text-danger" 
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      signOut();
+                    }}
+                  >
+                    <LogOut size={16} /> Sign Out
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
 import { runCorrectiveRag, evaluateAnswerMultimodalStream } from '@/services/rag-core/services/rag-service';
-import { checkUserLimits, logUserUsage } from '@/lib/usage-tracker';
+import { logUserUsage } from '@/lib/usage-tracker';
+import { getOrUpdateUserLimits, incrementEvaluationUsage } from '@/lib/limits';
 
 async function updateCSUserAnalytics(userId: string) {
   try {
@@ -74,21 +75,26 @@ export async function POST(request: Request) {
 
     const targetUserId = userId || '00000000-0000-0000-0000-000000000000';
 
-    // Enforcement of Closed Beta user limits
-    const limits = await checkUserLimits(targetUserId);
-    if (!limits.allowed) {
+    // Verify user limits & status
+    const limits = await getOrUpdateUserLimits(targetUserId);
+    if (limits.status === 'Suspended' || (limits.evalLimit !== -1 && limits.evalsUsedToday >= limits.evalLimit)) {
+      const reason = limits.status === 'Suspended' 
+        ? 'Account suspended. Please contact founder.' 
+        : `Daily evaluation limit reached (${limits.evalsUsedToday}/${limits.evalLimit}). Limit resets daily.`;
+
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
-          controller.enqueue(encoder.encode(`⚠️ You have reached your beta evaluation limit.\n\n${limits.reason}`));
+          controller.enqueue(encoder.encode(`⚠️ ${reason}`));
           controller.close();
         }
       });
       return new Response(stream, {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'Transfer-Encoding': 'chunked',
-        },
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        }
       });
     }
 
@@ -330,6 +336,7 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
               console.error('❌ [DB Insert FAILED] Payload that failed:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
             } else {
               console.log(`✅ [DB Insert SUCCESS] Saved evaluation ID: ${evalId}, rows inserted: ${insertData?.length ?? 0}`);
+              await incrementEvaluationUsage(targetUserId);
             }
 
             await updateCSUserAnalytics(targetUserId);

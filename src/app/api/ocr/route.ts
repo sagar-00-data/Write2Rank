@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { callModelWithRotation } from '@/lib/gemini-keys';
+import { auth } from '@clerk/nextjs/server';
+import { getOrUpdateUserLimits, incrementOcrUsage } from '@/lib/limits';
 
 function cleanOcrText(text: string): string {
   if (!text) return '';
@@ -46,6 +48,22 @@ function cleanOcrText(text: string): string {
 
 export async function POST(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+    }
+
+    const limits = await getOrUpdateUserLimits(userId);
+    if (limits.status === 'Suspended') {
+      return NextResponse.json({ error: 'Account suspended. Please contact founder.' }, { status: 403 });
+    }
+
+    if (limits.ocrLimit !== -1 && limits.ocrUsedToday >= limits.ocrLimit) {
+      return NextResponse.json({ 
+        error: `Daily OCR page limit reached (${limits.ocrUsedToday}/${limits.ocrLimit}). Limit resets daily.` 
+      }, { status: 429 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
@@ -175,6 +193,8 @@ export async function POST(request: Request) {
 
     // Run text post-processing cleanup
     const cleanedText = cleanOcrText(extractedText);
+
+    await incrementOcrUsage(userId);
 
     return NextResponse.json({ extractedText: cleanedText });
   } catch (error: any) {

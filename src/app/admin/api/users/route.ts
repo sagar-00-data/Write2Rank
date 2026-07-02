@@ -3,90 +3,113 @@ import { supabaseServer } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // 1. Fetch Users
-    const { data: users, error: usersErr } = await supabaseServer
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || '';
+    const plan = searchParams.get('plan') || '';
+    const status = searchParams.get('status') || '';
+    const sortBy = searchParams.get('sortBy') || 'created_at';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
 
+    // 1. Build Query
+    let query = supabaseServer
+      .from('users')
+      .select('*', { count: 'exact' });
+
+    // Apply filters
+    if (plan) {
+      query = query.eq('plan', plan);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (search) {
+      // Support searching by name, email, id or clerk_id
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,id.eq.${search},clerk_id.eq.${search}`);
+    }
+
+    // Apply sorting
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+
+    // Apply pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    query = query.range(from, to);
+
+    const { data: users, count, error: usersErr } = await query;
     if (usersErr) throw usersErr;
 
-    // 2. Fetch User Usage Logs
-    const { data: logs, error: logsErr } = await supabaseServer
-      .from('user_usage_logs')
-      .select('user_id, status, timestamp');
+    // Fetch plan defaults to calculate default limits on the frontend if needed
+    const { data: planConfigs } = await supabaseServer
+      .from('plan_configurations')
+      .select('*');
 
-    if (logsErr) throw logsErr;
-
-    // Combine user details with usage aggregates
-    const usersMap = new Map<string, {
-      id: string;
-      name: string;
-      email: string;
-      profilePhoto: string;
-      createdAt: string;
-      lastLogin: string;
-      totalEvals: number;
-      successfulEvals: number;
-      failedEvals: number;
-    }>();
-
-    // Initialize with database users
-    (users || []).forEach((u: any) => {
-      usersMap.set(u.id, {
-        id: u.id,
-        name: u.name || 'Anonymous',
-        email: u.email || 'N/A',
-        profilePhoto: u.profile_photo || '',
-        createdAt: u.created_at,
-        lastLogin: u.last_login || u.created_at,
-        totalEvals: 0,
-        successfulEvals: 0,
-        failedEvals: 0,
-      });
+    return NextResponse.json({
+      users: users || [],
+      total: count || 0,
+      page,
+      limit,
+      planConfigs: planConfigs || []
     });
 
-    // Process logs to accumulate evaluations counts
-    (logs || []).forEach((l: any) => {
-      const uid = l.user_id || '00000000-0000-0000-0000-000000000000';
-      if (!usersMap.has(uid)) {
-        // Fallback for guest users or logs without matching user row
-        usersMap.set(uid, {
-          id: uid,
-          name: uid === '00000000-0000-0000-0000-000000000000' ? 'Guest User' : 'Unknown Beta User',
-          email: uid === '00000000-0000-0000-0000-000000000000' ? 'guest@write2rank.com' : 'unknown@write2rank.com',
-          profilePhoto: '',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-          totalEvals: 0,
-          successfulEvals: 0,
-          failedEvals: 0,
-        });
-      }
-
-      const uRecord = usersMap.get(uid)!;
-      uRecord.totalEvals++;
-      if (l.status === 'success') {
-        uRecord.successfulEvals++;
-      } else {
-        uRecord.failedEvals++;
-      }
-
-      // Track last login/activity time from logs if later than current
-      const logTime = new Date(l.timestamp).getTime();
-      const currentLastActive = new Date(uRecord.lastLogin).getTime();
-      if (logTime > currentLastActive) {
-        uRecord.lastLogin = l.timestamp;
-      }
-    });
-
-    const userList = Array.from(usersMap.values()).sort((a, b) => b.totalEvals - a.totalEvals);
-
-    return NextResponse.json({ users: userList });
   } catch (err: any) {
-    console.error('Failed to aggregate user statistics:', err);
+    console.error('Failed to query user directory:', err);
     return NextResponse.json({ error: 'Failed to fetch user directory.' }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { userId, action, plan, status, customEvalLimit, customOcrLimit, adminNotes } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    // 1. Resolve User settings and quick action updates
+    let updateFields: Record<string, any> = {};
+
+    if (action === 'save_changes') {
+      if (plan !== undefined) updateFields.plan = plan;
+      if (status !== undefined) updateFields.status = status;
+      if (customEvalLimit !== undefined) updateFields.custom_eval_limit = customEvalLimit === '' || customEvalLimit === null ? null : parseInt(customEvalLimit, 10);
+      if (customOcrLimit !== undefined) updateFields.custom_ocr_limit = customOcrLimit === '' || customOcrLimit === null ? null : parseInt(customOcrLimit, 10);
+      if (adminNotes !== undefined) updateFields.admin_notes = adminNotes;
+    } else if (action === 'reset_usage') {
+      updateFields.evals_used_today = 0;
+      updateFields.ocr_used_today = 0;
+      updateFields.last_reset_date = new Date().toISOString().split('T')[0];
+    } else if (action === 'grant_unlimited_today') {
+      updateFields.custom_eval_limit = -1;
+      updateFields.custom_ocr_limit = -1;
+    } else if (action === 'suspend_user') {
+      updateFields.status = 'Suspended';
+    } else if (action === 'reactivate_user') {
+      updateFields.status = 'Active';
+    } else if (action === 'change_plan') {
+      if (plan) updateFields.plan = plan;
+    } else {
+      return NextResponse.json({ error: `Invalid action specified: ${action}` }, { status: 400 });
+    }
+
+    // Update database
+    const { data: updatedUser, error: updateErr } = await supabaseServer
+      .from('users')
+      .update(updateFields)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    return NextResponse.json({ success: true, user: updatedUser });
+
+  } catch (err: any) {
+    console.error('Failed to update user profile:', err);
+    return NextResponse.json({ error: 'Failed to update user details: ' + err.message }, { status: 500 });
   }
 }

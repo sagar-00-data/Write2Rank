@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
 import { callModelWithRotation } from '@/lib/gemini-keys';
-import { checkUserLimits, logUserUsage } from '@/lib/usage-tracker';
+import { logUserUsage } from '@/lib/usage-tracker';
+import { getOrUpdateUserLimits, incrementEvaluationUsage } from '@/lib/limits';
 
 async function updateUserAnalytics(userId: string) {
   try {
@@ -78,10 +79,16 @@ export async function POST(request: Request) {
 
     const targetUserId = userId || '00000000-0000-0000-0000-000000000000';
 
-    // Enforcement of Closed Beta user limits
-    const limits = await checkUserLimits(targetUserId);
-    if (!limits.allowed) {
-      return NextResponse.json({ error: 'You have reached your beta evaluation limit.' }, { status: 403 });
+    // Verify user limits & status
+    const limits = await getOrUpdateUserLimits(targetUserId);
+    if (limits.status === 'Suspended') {
+      return NextResponse.json({ error: 'Account suspended. Please contact founder.' }, { status: 403 });
+    }
+
+    if (limits.evalLimit !== -1 && limits.evalsUsedToday >= limits.evalLimit) {
+      return NextResponse.json({ 
+        error: `Daily evaluation limit reached (${limits.evalsUsedToday}/${limits.evalLimit}). Limit resets daily.` 
+      }, { status: 429 });
     }
 
     // 5. Implement evaluation result caching
@@ -279,6 +286,7 @@ export async function POST(request: Request) {
               console.error('❌ [DB Insert FAILED] Payload:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
             } else {
               console.log(`✅ [DB Insert SUCCESS] Saved text evaluation ID: ${id}, rows: ${insertData?.length ?? 0}`);
+              await incrementEvaluationUsage(targetUserId);
               // Recalculate and update the analytics dashboard in real time
               await updateUserAnalytics(targetUserId);
             }

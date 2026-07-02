@@ -378,6 +378,10 @@ export async function GET() {
         failedEvaluations: failedEvals.length,
         totalUsers,
         activeUsersToday,
+        avgEvalsPerUser: parseFloat((userLogs.length / Math.max(totalUsers, 1)).toFixed(2)),
+        avgOcrPerUser: parseFloat((ocrRuns.length / Math.max(totalUsers, 1)).toFixed(2)),
+        avgCostPerUser: parseFloat((totalCostAllTime / Math.max(totalUsers, 1)).toFixed(5)),
+        avgPagesPerEval: parseFloat((ocrRuns.length / Math.max(userLogs.length, 1)).toFixed(2)),
       },
       ocr: {
         geminiOcrRequestsToday: geminiOcrRunsToday,

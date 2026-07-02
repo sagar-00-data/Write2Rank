@@ -1,9 +1,10 @@
 'use client';
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { Session } from '@supabase/supabase-js';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/nextjs';
 
 type AuthUser = {
-  id: string;
+  id: string;      // Deterministic UUID for Supabase Database
+  clerkId: string; // Original Clerk User ID
   email: string;
   name: string;
   profilePhoto: string;
@@ -12,7 +13,7 @@ type AuthUser = {
 
 interface AuthContextType {
   user: AuthUser | null;
-  session: Session | null;
+  session: any | null;
   isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -21,36 +22,97 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
-  isLoading: false,
+  isLoading: true,
   signInWithGoogle: async () => {},
   signOut: async () => {},
 });
 
-// Permanent guest user configuration mapped to Supabase 'Guest User' ID
-const GUEST_USER: AuthUser = {
-  id: '00000000-0000-0000-0000-000000000000',
-  email: 'guest@write2rank.com',
-  name: 'Guest User',
-  profilePhoto: '',
-  createdAt: new Date('2026-01-01').toISOString(),
-};
+// Deterministic UUID generator based on Clerk ID
+function getDeterministicUUID(str: string): string {
+  const cleanId = str.replace('user_', '');
+  let hex = '';
+  for (let i = 0; i < cleanId.length; i++) {
+    hex += cleanId.charCodeAt(i).toString(16);
+  }
+  if (hex.length < 32) {
+    hex = hex.padEnd(32, 'f');
+  } else if (hex.length > 32) {
+    hex = hex.substring(0, 32);
+  }
+  return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-4${hex.substring(12, 15)}-8${hex.substring(15, 18)}-${hex.substring(18, 30)}`;
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session] = useState<Session | null>(null);
-  const [user] = useState<AuthUser | null>(GUEST_USER);
-  const [isLoading] = useState(false);
+  const { user: clerkUser, isLoaded: isUserLoaded, isSignedIn } = useUser();
+  const { signOut: clerkSignOut } = useClerkAuth();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Authentication is disabled - no active OAuth logic
+  useEffect(() => {
+    if (!isUserLoaded) {
+      setIsLoading(true);
+      return;
+    }
+
+    const syncAndSetUser = async () => {
+      if (isSignedIn && clerkUser) {
+        const email = clerkUser.emailAddresses[0]?.emailAddress || '';
+        const name = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User';
+        const profilePhoto = clerkUser.imageUrl || '';
+        const deterministicId = getDeterministicUUID(clerkUser.id);
+
+        const mappedUser: AuthUser = {
+          id: deterministicId,
+          clerkId: clerkUser.id,
+          email,
+          name,
+          profilePhoto,
+          createdAt: clerkUser.createdAt?.toISOString(),
+        };
+
+        setUser(mappedUser);
+        setIsLoading(false);
+
+        // Perform server-side profile syncing to Supabase database (bypasses RLS)
+        try {
+          const res = await fetch('/api/auth/sync', { method: 'POST' });
+          if (!res.ok) {
+            console.error('Failed to sync profile to database:', await res.text());
+          } else {
+            console.log('✅ User profile successfully synchronized with database.');
+          }
+        } catch (err) {
+          console.error('Error synchronizing user profile:', err);
+        }
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
+    };
+
+    syncAndSetUser();
+  }, [clerkUser, isUserLoaded, isSignedIn]);
+
+  // Handle OAuth redirects via Clerk's custom pages
   const signInWithGoogle = async () => {
-    console.log('Google Auth is disabled in Guest mode.');
+    // Clerk handles redirection through its prebuilt components
+    window.location.href = '/login';
   };
-  
+
   const signOut = async () => {
-    console.log('Sign Out is disabled in Guest mode.');
+    setIsLoading(true);
+    try {
+      await clerkSignOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session: null, isLoading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -59,4 +121,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   return useContext(AuthContext);
 };
-

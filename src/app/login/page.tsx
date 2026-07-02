@@ -3,10 +3,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
-import { Sparkles, CheckCircle2, ShieldCheck, FileText, ArrowUpRight } from 'lucide-react';
+import { Sparkles, CheckCircle2, ShieldCheck, FileText } from 'lucide-react';
+import { SignIn } from '@clerk/nextjs';
 
 export default function LoginPage() {
-  const { user, isLoading, signInWithGoogle } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -91,56 +92,68 @@ export default function LoginPage() {
         <div className="glow-2"></div>
       </div>
 
-      {/* Right panel - Authentication Action */}
+      {/* Right panel - Authentication Action using Clerk */}
       <div className="login-action-panel">
-        <div className="login-card">
-          <div className="login-card-header">
-            <div className="login-logo-container">
-              <Logo size={56} />
-            </div>
-            <h2 className="login-card-title">Sign in to your account</h2>
-            <p className="login-card-subtitle">Choose your authentication provider to continue</p>
-          </div>
-
-          <div className="login-card-body">
-            <button 
-              className="google-btn" 
-              onClick={signInWithGoogle}
-              disabled={isLoading}
-            >
-              <div className="google-icon-wrapper">
-                <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-                  <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
-                    <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
-                    <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
-                    <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
-                    <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
-                  </g>
-                </svg>
-              </div>
-              <span className="google-btn-text">
-                {isLoading ? 'Connecting to Google...' : 'Continue with Google'}
-              </span>
-            </button>
-
-            <div className="login-divider">
-              <span>Secure OAuth2 Flow</span>
-            </div>
-            
-            <p className="login-help-text">
-              Direct connection via Supabase Authentication. We do not store or see your Google account password.
-            </p>
-          </div>
-          
-          <div className="login-card-footer">
-            <span className="footer-link">Terms of Service</span>
-            <span className="footer-dot">•</span>
-            <span className="footer-link">Privacy Policy</span>
-          </div>
-        </div>
+        <SignIn
+          appearance={{
+            variables: {
+              colorPrimary: '#2563eb', // --accent-color
+              colorBackground: '#ffffff', // --bg-primary
+              borderRadius: '12px',
+              fontFamily: 'var(--font-inter), sans-serif',
+            },
+            elements: {
+              cardBox: {
+                boxShadow: 'none',
+                width: '100%',
+              },
+              card: {
+                border: '1px solid var(--border-color)',
+                boxShadow: 'var(--shadow-lg)',
+                borderRadius: '24px',
+                padding: '40px',
+                width: '100%',
+                maxWidth: '420px',
+                background: 'var(--bg-primary)',
+              },
+              headerTitle: {
+                fontWeight: '800',
+                fontSize: '24px',
+                letterSpacing: '-0.02em',
+                color: 'var(--text-primary)',
+              },
+              headerSubtitle: {
+                color: 'var(--text-secondary)',
+                fontSize: '14px',
+              },
+              socialButtonsBlockButton: {
+                borderColor: 'var(--border-color)',
+                borderRadius: '12px',
+                padding: '12px 24px',
+                '&:hover': {
+                  background: 'var(--bg-secondary)',
+                }
+              },
+              formButtonPrimary: {
+                background: 'var(--accent-color)',
+                borderRadius: '12px',
+                padding: '12px',
+                '&:hover': {
+                  background: 'var(--accent-hover)',
+                }
+              },
+              footerActionLink: {
+                color: 'var(--accent-color)',
+                '&:hover': {
+                  color: 'var(--accent-hover)',
+                }
+              }
+            }
+          }}
+        />
       </div>
 
-      <style>{`
+      <style jsx>{`
         .login-container {
           min-height: 100vh;
           display: grid;
@@ -327,151 +340,6 @@ export default function LoginPage() {
           justify-content: center;
           padding: 60px 40px;
           background: var(--bg-secondary);
-        }
-
-        .login-card {
-          width: 100%;
-          max-width: 420px;
-          background: var(--bg-primary);
-          border: 1px solid var(--border-color);
-          box-shadow: var(--shadow-lg);
-          border-radius: 24px;
-          padding: 48px 40px;
-          display: flex;
-          flex-direction: column;
-          gap: 32px;
-        }
-
-        .login-card-header {
-          text-align: center;
-        }
-
-        .login-logo-container {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 24px;
-          padding: 12px;
-          background: var(--bg-secondary);
-          border-radius: 18px;
-          border: 1px solid var(--border-color);
-        }
-
-        .login-card-title {
-          font-size: 24px;
-          font-weight: 800;
-          color: var(--text-primary);
-          letter-spacing: -0.02em;
-          margin-bottom: 8px;
-        }
-
-        .login-card-subtitle {
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-
-        .login-card-body {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-
-        .google-btn {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          background: var(--bg-primary);
-          color: var(--text-primary);
-          border: 1px solid var(--border-color);
-          padding: 14px 24px;
-          border-radius: 12px;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: var(--shadow-sm);
-        }
-
-        .google-btn:hover {
-          background: var(--bg-secondary);
-          border-color: #cbd5e1;
-          transform: translateY(-1px);
-          box-shadow: var(--shadow-md);
-        }
-
-        .google-btn:active {
-          transform: translateY(0);
-          box-shadow: var(--shadow-sm);
-        }
-
-        .google-btn:disabled {
-          opacity: 0.65;
-          cursor: not-allowed;
-        }
-
-        .google-icon-wrapper {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .login-divider {
-          display: flex;
-          align-items: center;
-          text-align: center;
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--text-secondary);
-          font-weight: 600;
-        }
-
-        .login-divider::before,
-        .login-divider::after {
-          content: '';
-          flex: 1;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .login-divider:not(:empty)::before {
-          margin-right: 16px;
-        }
-
-        .login-divider:not(:empty)::after {
-          margin-left: 16px;
-        }
-
-        .login-help-text {
-          font-size: 12px;
-          line-height: 1.5;
-          color: var(--text-secondary);
-          text-align: center;
-        }
-
-        .login-card-footer {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 10px;
-          font-size: 12px;
-          color: var(--text-secondary);
-          border-top: 1px solid var(--border-color);
-          padding-top: 24px;
-        }
-
-        .footer-link {
-          cursor: pointer;
-          transition: color 0.15s ease;
-        }
-
-        .footer-link:hover {
-          color: var(--accent-color);
-        }
-
-        .footer-dot {
-          color: var(--border-color);
         }
 
         /* Responsive Breakpoints */
