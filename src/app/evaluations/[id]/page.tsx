@@ -589,7 +589,7 @@ export default function EvaluationDetail() {
             <div style={{ padding: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
               <h5 style={{ margin: '0 0 12px 0', fontSize: '14.5px', fontWeight: 700, color: '#166534' }}>Key Strengths</h5>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'correct').slice(0, 5).map((p: any, idx: number) => (
+                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'correct').slice(0, 4).map((p: any, idx: number) => (
                   <div key={idx} style={{ fontSize: '13px', color: '#14532d', lineHeight: '1.5', fontWeight: 500, display: 'flex', gap: '6px' }}>
                     <span>✅</span> <span>{p.text}</span>
                   </div>
@@ -607,7 +607,7 @@ export default function EvaluationDetail() {
             <div style={{ padding: '20px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
               <h5 style={{ margin: '0 0 12px 0', fontSize: '14.5px', fontWeight: 700, color: '#9f1239' }}>Areas for Improvement</h5>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'missing' || p.status === 'partial').slice(0, 5).map((p: any, idx: number) => (
+                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'missing' || p.status === 'partial').slice(0, 4).map((p: any, idx: number) => (
                   <div key={idx} style={{ fontSize: '13px', color: '#9f1239', lineHeight: '1.5', fontWeight: 500, display: 'flex', gap: '6px' }}>
                     <span>⚠️</span> <span>{p.text}</span>
                   </div>
@@ -648,17 +648,17 @@ export default function EvaluationDetail() {
           ))}
         </div>
 
-        {/* SaaS Action Buttons */}
+        {/* Level 2: Interactive SaaS Action Cards */}
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-          gap: '16px' 
+          gap: '20px' 
         }}>
           {[
-            { id: 'detailed', label: 'Detailed Report', icon: FileText, color: '#3b82f6' },
-            { id: 'model', label: 'Perfect Model Answer', icon: Sparkles, color: '#10b981' },
-            { id: 'improved', label: 'Improved Answer', icon: CheckCircle2, color: '#8b5cf6' },
-            { id: 'revision', label: 'Revision Notes', icon: BookOpen, color: '#f59e0b' }
+            { id: 'detailed', label: 'Detailed Report', desc: 'See complete examiner analysis', icon: FileText, color: '#2563eb', bg: '#eff6ff' },
+            { id: 'model', label: 'Perfect Model Answer', desc: 'View full marks answer', icon: Sparkles, color: '#10b981', bg: '#ecfdf5' },
+            { id: 'improved', label: 'Improved Answer', desc: 'See your answer rewritten', icon: CheckCircle2, color: '#8b5cf6', bg: '#f5f3ff' },
+            { id: 'revision', label: 'Revision Notes', desc: 'Quick revision before exams', icon: BookOpen, color: '#f59e0b', bg: '#fffbeb' }
           ].map((btn) => {
             const Icon = btn.icon;
             const isSelected = activeSection === btn.id;
@@ -668,23 +668,35 @@ export default function EvaluationDetail() {
                 onClick={() => setActiveSection(isSelected ? 'none' : btn.id as any)}
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px',
-                  padding: '16px 20px',
-                  backgroundColor: isSelected ? btn.color : '#ffffff',
-                  color: isSelected ? '#ffffff' : '#334155',
-                  border: isSelected ? `1px solid ${btn.color}` : '1px solid #e2e8f0',
-                  borderRadius: '16px',
-                  fontSize: '14px',
-                  fontWeight: 700,
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  textAlign: 'left',
+                  gap: '12px',
+                  padding: '24px',
+                  backgroundColor: '#ffffff',
+                  border: isSelected ? `2px solid ${btn.color}` : '1px solid #e2e8f0',
+                  borderRadius: '20px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: isSelected ? `0 4px 12px ${btn.color}30` : 'none'
+                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                  boxShadow: isSelected ? `0 12px 30px -10px ${btn.color}25` : '0 2px 8px rgba(0,0,0,0.01)',
+                  transform: isSelected ? 'translateY(-2px)' : 'none',
                 }}
               >
-                <Icon size={18} color={isSelected ? '#ffffff' : btn.color} />
-                {btn.label}
+                <div style={{
+                  padding: '10px',
+                  backgroundColor: btn.bg,
+                  borderRadius: '12px',
+                  color: btn.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{btn.label}</div>
+                  <div style={{ fontSize: '12.5px', color: '#64748b', lineHeight: '1.4' }}>{btn.desc}</div>
+                </div>
               </button>
             );
           })}
@@ -740,10 +752,10 @@ export default function EvaluationDetail() {
                   </div>
                 )}
 
-                {/* 3. Citation Audit Redesign */}
+                {/* 3. Legal Provision Check (Redesigned from Citation Audit) */}
                 {parsed.legalProvisionAnalysis && (
                   <div>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Citation Audit</h4>
+                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Legal Provision Check</h4>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '20px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Impact Level:</span>
                       <span style={{ 
@@ -761,7 +773,7 @@ export default function EvaluationDetail() {
                       
                       {/* Correct Citations */}
                       <div style={{ padding: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
-                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Correct Citations</h5>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Correct</h5>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'correct').map((p, idx) => (
                             <div key={idx} style={{ fontSize: '12.5px', color: '#14532d', display: 'flex', gap: '6px' }}>
@@ -833,7 +845,7 @@ export default function EvaluationDetail() {
                           <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                             <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Expected Concept</th>
                             <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center', width: '140px' }}>Student Covered?</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Examiner Remarks</th>
+                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Remarks</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -927,8 +939,23 @@ export default function EvaluationDetail() {
             {activeSection === 'revision' && (
               <div>
                 <h4 style={{ margin: '0 0 14px 0', fontSize: '15px', fontWeight: 700, color: '#d97706' }}>Revision Notes</h4>
-                <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>
-                  {parsed.keyTakeaways || 'No revision notes available.'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {(parsed.keyTakeaways || '')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && (line.startsWith('-') || line.startsWith('*') || /^\d+\./.test(line) || line.length > 5))
+                    .map(line => line.replace(/^[-*\s\d.]+\s*/, ''))
+                    .slice(0, 10)
+                    .map((note, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '14.5px', color: '#475569', lineHeight: '1.6' }}>
+                        <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>•</span>
+                        <span>{note}</span>
+                      </div>
+                    ))
+                  }
+                  {(!parsed.keyTakeaways) && (
+                    <div style={{ fontSize: '14px', color: '#64748b', fontStyle: 'italic' }}>No revision notes available.</div>
+                  )}
                 </div>
               </div>
             )}
