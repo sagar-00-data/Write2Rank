@@ -35,7 +35,6 @@ export default function FounderOcrPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch('/founder/api/stats', { cache: 'no-store' });
@@ -68,7 +67,7 @@ export default function FounderOcrPage() {
         <AlertTriangle size={32} className="text-red-500 mx-auto mb-4" />
         <h3 style={{ fontSize: 16, fontWeight: 700, color: '#ffffff' }}>Telemetry Connection Offline</h3>
         <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>{error || 'Could not fetch platform metrics.'}</p>
-        <button onClick={fetchData} className="fd-btn-secondary" style={{ marginTop: 16 }}>Retry Connection</button>
+        <button onClick={() => { setLoading(true); fetchData(); }} className="fd-btn-secondary" style={{ marginTop: 16 }}>Retry Connection</button>
       </div>
     );
   }

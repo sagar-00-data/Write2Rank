@@ -12,7 +12,10 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user && pathname !== '/login') {
+    if (pathname.startsWith('/founder') || pathname.startsWith('/admin') || pathname === '/login') {
+      return;
+    }
+    if (!isLoading && !user) {
       router.replace('/login');
     }
   }, [user, isLoading, pathname, router]);
