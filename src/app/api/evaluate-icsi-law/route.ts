@@ -332,8 +332,9 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
               .select();
 
             if (insertError) {
-              console.error('❌ [DB Insert FAILED] Supabase error:', JSON.stringify(insertError, null, 2));
-              console.error('❌ [DB Insert FAILED] Payload that failed:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
+              console.error('❌ [DB Insert FAILED] Supabase error details:', JSON.stringify(insertError, null, 2));
+              console.error('❌ [DB Insert FAILED] Payload details:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
+              throw new Error(`Database save operation failed: ${insertError.message} (${insertError.code})`);
             } else {
               console.log(`✅ [DB Insert SUCCESS] Saved evaluation ID: ${evalId}, rows inserted: ${insertData?.length ?? 0}`);
               await incrementEvaluationUsage(targetUserId);

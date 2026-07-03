@@ -282,16 +282,18 @@ export async function POST(request: Request) {
               .select();
 
             if (dbError) {
-              console.error('❌ [DB Insert FAILED] Supabase error:', JSON.stringify(dbError, null, 2));
-              console.error('❌ [DB Insert FAILED] Payload:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
+              console.error('❌ [DB Insert FAILED] Supabase error details:', JSON.stringify(dbError, null, 2));
+              console.error('❌ [DB Insert FAILED] Payload details:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
+              throw new Error(`Database save operation failed: ${dbError.message} (${dbError.code})`);
             } else {
               console.log(`✅ [DB Insert SUCCESS] Saved text evaluation ID: ${id}, rows: ${insertData?.length ?? 0}`);
               await incrementEvaluationUsage(targetUserId);
               // Recalculate and update the analytics dashboard in real time
               await updateUserAnalytics(targetUserId);
             }
-          } catch (dbErr) {
+          } catch (dbErr: any) {
             console.error('Error in Supabase saving pipeline:', dbErr);
+            return NextResponse.json({ error: `Failed to save evaluation to database: ${dbErr.message}` }, { status: 500 });
           }
 
         // Add missing fields required by the frontend

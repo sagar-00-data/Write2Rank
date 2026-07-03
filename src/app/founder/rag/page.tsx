@@ -57,7 +57,7 @@ export default function FounderRagPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
         <div className="fd-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ p: 4, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '50%', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', width: 64, height: 64 }}>
+          <div style={{ padding: 16, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '50%', marginBottom: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', width: 64, height: 64 }}>
             <Database size={28} className="text-indigo-400" />
           </div>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Total Vector Embeddings</div>

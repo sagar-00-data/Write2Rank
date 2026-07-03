@@ -90,7 +90,7 @@ export default function FounderAiCostPage() {
 
       {/* Keys Rotation Pool */}
       <div className="fd-card" style={{ padding: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', marginBottom: 20, display: 'flex', justifycontent: 'space-between', itemsAlign: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Cpu size={16} className="text-indigo-400" />
             Gemini API Key Rotation Pool

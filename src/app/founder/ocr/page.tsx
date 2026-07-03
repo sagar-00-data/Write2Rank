@@ -100,7 +100,7 @@ export default function FounderOcrPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: 11, marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 6 }}>
                 <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Daily OCR Free-Tier Quota</span>
                 <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>{data.ocr.geminiOcrRequestsToday} / {data.freeTier.ocrLimit} pages</span>
               </div>
@@ -110,7 +110,7 @@ export default function FounderOcrPage() {
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifycontent: 'space-between', fontSize: 11, marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 6 }}>
                 <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Monthly Scaling Quota Limit</span>
                 <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>{data.ocr.geminiOcrRequestsThisMonth} / 15,000 pages</span>
               </div>
@@ -119,7 +119,7 @@ export default function FounderOcrPage() {
               </div>
             </div>
 
-            <div style={{ padding: 12, background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: 10, display: 'flex', justifycontent: 'space-between', fontSize: 11 }}>
+            <div style={{ padding: 12, background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
               <span style={{ color: '#94a3b8' }}>OCR Queue Performance Status:</span>
               <span style={{ fontWeight: 700, color: '#34d399', textTransform: 'uppercase' }}>{data.ocr.ocrQueueStatus}</span>
             </div>
