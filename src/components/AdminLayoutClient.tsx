@@ -36,23 +36,23 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
   }, []);
 
   const menuItems = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Evaluations', href: '/admin/evaluations', icon: FileText },
-    { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp },
-    { name: 'OCR Details', href: '/admin/dashboard#ocr', icon: Binary },
-    { name: 'RAG Knowledge', href: '/admin/dashboard#rag', icon: Database },
-    { name: 'API Cost & Usage', href: '/admin/dashboard#api-usage', icon: Cpu },
-    { name: 'System Health', href: '/admin/settings#health', icon: Heart },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
+    { name: 'Dashboard', href: '/founder/dashboard', icon: LayoutDashboard },
+    { name: 'Users', href: '/founder/users', icon: Users },
+    { name: 'Evaluations', href: '/founder/evaluations', icon: FileText },
+    { name: 'Analytics', href: '/founder/analytics', icon: TrendingUp },
+    { name: 'OCR Details', href: '/founder/ocr', icon: Binary },
+    { name: 'RAG Knowledge', href: '/founder/rag', icon: Database },
+    { name: 'API Cost & Usage', href: '/founder/ai-cost', icon: Cpu },
+    { name: 'System Health', href: '/founder/system-health', icon: Heart },
+    { name: 'Settings', href: '/founder/settings', icon: Settings },
   ];
 
   const handleLogout = async () => {
     try {
-      const res = await fetch('/admin/api/logout', { method: 'POST' });
+      const res = await fetch('/founder/api/logout', { method: 'POST' });
       if (res.ok) {
         router.refresh();
-        router.push('/admin');
+        router.push('/founder');
       }
     } catch (err) {
       console.error('Failed to log out:', err);
@@ -68,21 +68,28 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
     setSyncing(false);
   };
 
-  // Resolve page header title and description based on active route
   const getHeaderMeta = () => {
     const defaultMeta = { title: 'Founder Console', desc: 'Secure operational command panel.' };
     if (!pathname) return defaultMeta;
     
-    if (pathname.startsWith('/admin/dashboard')) {
+    if (pathname.startsWith('/founder/dashboard')) {
       return { title: 'Dashboard', desc: 'Executive overview of the platform.' };
-    } else if (pathname.startsWith('/admin/users')) {
+    } else if (pathname.startsWith('/founder/users')) {
       return { title: 'Users', desc: 'Manage platform users and subscriptions.' };
-    } else if (pathname.startsWith('/admin/evaluations')) {
+    } else if (pathname.startsWith('/founder/evaluations')) {
       return { title: 'Evaluations', desc: 'Monitor answer evaluations and AI performance.' };
-    } else if (pathname.startsWith('/admin/analytics')) {
+    } else if (pathname.startsWith('/founder/analytics')) {
       return { title: 'Analytics', desc: 'Business intelligence and platform insights.' };
-    } else if (pathname.startsWith('/admin/settings')) {
+    } else if (pathname.startsWith('/founder/settings')) {
       return { title: 'Settings', desc: 'Platform configuration and preferences.' };
+    } else if (pathname.startsWith('/founder/ocr')) {
+      return { title: 'OCR Engine Analytics', desc: 'Monitor handwritten text recognition and limits.' };
+    } else if (pathname.startsWith('/founder/rag')) {
+      return { title: 'RAG Knowledge', desc: 'Explore vector embeddings and custom database reference docs.' };
+    } else if (pathname.startsWith('/founder/ai-cost')) {
+      return { title: 'API Cost & Usage', desc: 'Track token usage and estimated Gemini costs.' };
+    } else if (pathname.startsWith('/founder/system-health')) {
+      return { title: 'System Health & Diagnosis', desc: 'Run real-time API connection tests.' };
     }
     return defaultMeta;
   };
@@ -104,7 +111,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href || (item.href.includes('#') && pathname === '/admin/dashboard' && item.href.startsWith('/admin/dashboard#'));
+            const isActive = pathname === item.href || (item.href.includes('#') && pathname === '/founder/dashboard' && item.href.startsWith('/founder/dashboard#'));
             return (
               <Link
                 key={item.name}

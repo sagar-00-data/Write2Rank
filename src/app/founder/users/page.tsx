@@ -84,7 +84,7 @@ export default function AdminUsersPage() {
         limit: limit.toString(),
       });
       
-      const res = await fetch(`/admin/api/users?${params.toString()}`);
+      const res = await fetch(`/founder/api/users?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load user directory.');
       const data = await res.json();
       
@@ -120,7 +120,7 @@ export default function AdminUsersPage() {
     if (!selectedUser) return;
     setActionLoading(true);
     try {
-      const res = await fetch('/admin/api/users', {
+      const res = await fetch('/founder/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

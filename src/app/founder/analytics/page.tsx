@@ -49,9 +49,9 @@ export default function AdminAnalytics() {
     try {
       setError(null);
       
-      const statsRes = await fetch('/admin/api/stats');
-      const usersRes = await fetch('/admin/api/users');
-      const evalsRes = await fetch('/admin/api/evaluations');
+      const statsRes = await fetch('/founder/api/stats');
+      const usersRes = await fetch('/founder/api/users');
+      const evalsRes = await fetch('/founder/api/evaluations');
 
       if (!statsRes.ok || !usersRes.ok || !evalsRes.ok) {
         throw new Error('Telemetry API endpoint failure. Ensure server is online.');

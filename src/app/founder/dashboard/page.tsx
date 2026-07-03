@@ -242,7 +242,7 @@ export default function FounderOperationsCenter() {
     else setRefreshing(true);
     setError(null);
     try {
-      const res = await fetch('/admin/api/stats', { cache: 'no-store' });
+      const res = await fetch('/founder/api/stats', { cache: 'no-store' });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody.error || `HTTP ${res.status}`);
@@ -260,10 +260,10 @@ export default function FounderOperationsCenter() {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch('/admin/api/logout', { method: 'POST' });
+      const res = await fetch('/founder/api/logout', { method: 'POST' });
       if (res.ok) {
         router.refresh();
-        router.push('/admin');
+        router.push('/founder');
       }
     } catch (err) {
       console.error('Failed to log out:', err);

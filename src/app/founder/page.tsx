@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
     setError(null);
 
     try {
-      const res = await fetch('/admin/api/login', {
+      const res = await fetch('/founder/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
         // Play brief success transition animation before redirect
         setTimeout(() => {
           router.refresh();
-          router.push('/admin/dashboard');
+          router.push('/founder/dashboard');
         }, 800);
       }
     } catch (err) {

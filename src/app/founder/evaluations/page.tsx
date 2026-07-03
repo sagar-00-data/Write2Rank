@@ -29,7 +29,7 @@ export default function AdminEvaluationsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/admin/api/evaluations');
+      const res = await fetch('/founder/api/evaluations');
       if (!res.ok) throw new Error('Failed to fetch evaluations database records.');
       const data = await res.json();
       setEvaluations(data.evaluations || []);

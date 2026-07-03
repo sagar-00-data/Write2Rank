@@ -34,7 +34,7 @@ export default function AdminSettingsPage() {
   const fetchHealth = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/admin/api/stats');
+      const res = await fetch('/founder/api/stats');
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -57,7 +57,7 @@ export default function AdminSettingsPage() {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       if (service === 'supabase') {
-        const res = await fetch('/admin/api/stats');
+        const res = await fetch('/founder/api/stats');
         if (res.ok) {
           setTestResult(prev => ({
             ...prev,
