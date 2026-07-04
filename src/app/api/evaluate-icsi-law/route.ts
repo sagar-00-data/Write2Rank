@@ -237,7 +237,21 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
       });
     }
 
-    // Call the multimodal stream from RAG Service
+    // ─────────────────────────────────────────────────────────────────────────
+    // CRITICAL FIX: Collect the ENTIRE AI output BEFORE returning a response.
+    // Previously the DB insert ran after controller.close() inside the stream
+    // start() callback.  On Vercel, the serverless function is terminated the
+    // moment the stream closes, so the await supabaseAdmin.insert() was killed
+    // before it completed — silently dropping every evaluation.
+    //
+    // New approach:
+    //   1. Read the full AI output into a buffer (server-side, synchronous).
+    //   2. Parse scores and build the payload.
+    //   3. INSERT into Supabase — and AWAIT it fully.
+    //   4. Only then construct a ReadableStream from the buffer and return it.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Step 1 — drain the AI stream into a string buffer
     const ocrStream = await evaluateAnswerMultimodalStream(
       questionText || '',
       base64Image || '',
@@ -248,151 +262,101 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
 
     const reader = ocrStream.getReader();
     let fullGeneratedText = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      fullGeneratedText += new TextDecoder().decode(value);
+    }
 
+    // Step 2 — parse scores
+    let extractedAnswer = answerText;
+    const extractedTextMatch = fullGeneratedText.match(/---EXTRACTED_TEXT_START---([\s\S]*?)---EXTRACTED_TEXT_END---/);
+    if (extractedTextMatch) {
+      extractedAnswer = extractedTextMatch[1].trim();
+    }
+
+    const cleanMarkdown = fullGeneratedText
+      .replace(/---EXTRACTED_TEXT_START---[\s\S]*?---EXTRACTED_TEXT_END---/, '')
+      .trim();
+
+    const provisionsMatch  = cleanMarkdown.match(/Legal Provisions & Citations:\s*(\d+)/i);
+    const analysisMatch    = cleanMarkdown.match(/Analysis & Application:\s*(\d+)/i);
+    const conclusionMatch  = cleanMarkdown.match(/Conclusion:\s*(\d+)/i);
+    const formattingMatch  = cleanMarkdown.match(/Secretarial Formatting:\s*(\d+)/i);
+    const totalScoreMatch  = cleanMarkdown.match(/Total Score:\s*(\d+)/i);
+
+    const scoreProvisions = provisionsMatch ? (parseInt(provisionsMatch[1], 10) || 0) : 0;
+    const scoreAnalysis   = analysisMatch   ? (parseInt(analysisMatch[1],   10) || 0) : 0;
+    const scoreConclusion = conclusionMatch ? (parseInt(conclusionMatch[1], 10) || 0) : 0;
+    const scoreFormatting = formattingMatch ? (parseInt(formattingMatch[1], 10) || 0) : 0;
+
+    let totalScore = totalScoreMatch
+      ? (parseInt(totalScoreMatch[1], 10) || 0)
+      : scoreProvisions + scoreAnalysis + scoreConclusion + scoreFormatting;
+    totalScore = Math.max(0, Math.min(100, isNaN(totalScore) ? 0 : totalScore));
+
+    const aiFeedbackObj = {
+      markdown: cleanMarkdown,
+      breakdown: [
+        { q: 'Legal Provisions',    topic: 'Companies Act & Case Laws',   awarded: scoreProvisions, max: 35, comments: 'Verification of cited sections' },
+        { q: 'Analysis & Application', topic: 'Facts Parsing',            awarded: scoreAnalysis,   max: 35, comments: 'Application of law to facts' },
+        { q: 'Conclusion',          topic: 'Legal Stance',                awarded: scoreConclusion, max: 15, comments: 'Definitive conclusion review' },
+        { q: 'Secretarial Formatting', topic: 'Professional Structure',   awarded: scoreFormatting, max: 15, comments: 'Provisions -> Analysis -> Conclusion formatting' },
+      ],
+      crag_attempts: ragResult.attempts,
+    };
+
+    // Step 3 — INSERT into Supabase (fully awaited BEFORE response is sent)
+    const insertPayload = {
+      id: evalId,
+      user_id: targetUserId,
+      question_text: questionText || '',
+      answer_text: extractedAnswer || answerText || '',
+      ocr_extracted_text: extractedAnswer || answerText || '',
+      ai_feedback: aiFeedbackObj,
+      score: totalScore,
+      max_score: 100,
+      confidence: 95,
+      exam_type: 'CS Executive - Company Law',
+    };
+
+    console.log(`📥 [DB Insert] Saving evaluation ${evalId} for user ${targetUserId}`);
+    const { data: insertData, error: insertError } = await supabaseAdmin
+      .from('evaluations')
+      .insert(insertPayload)
+      .select();
+
+    if (insertError) {
+      console.error('❌ [DB Insert FAILED]', JSON.stringify(insertError));
+      console.error('❌ [DB Insert FAILED] payload:', JSON.stringify({ ...insertPayload, ai_feedback: '[omitted]' }));
+    } else {
+      console.log(`✅ [DB Insert OK] id=${evalId} rows=${insertData?.length ?? 0}`);
+      // Fire-and-forget secondary updates (analytics, usage) — these are non-critical
+      Promise.all([
+        incrementEvaluationUsage(targetUserId),
+        updateCSUserAnalytics(targetUserId),
+        logUserUsage({
+          user_id: targetUserId,
+          subject: 'CS Executive - Company Law',
+          question_length: questionText?.length || 0,
+          answer_length: (extractedAnswer || answerText)?.length || 0,
+          ocr_provider: fullGeneratedText.includes('OCR.Space') ? 'OCR.Space' : 'Gemini Vision',
+          gemini_model: 'gemini-2.5-flash',
+          ocr_time_ms: 0,
+          evaluation_time_ms: Date.now() - startTime,
+          total_time_ms: Date.now() - startTime,
+          status: 'success',
+        }),
+      ]).catch((e) => console.error('Secondary post-save operations failed:', e));
+    }
+
+    // Step 4 — stream the already-buffered text back to the client
+    const responseText = `---EVAL_ID:${evalId}---\n${fullGeneratedText}`;
     const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          // Prepend evalId for the client parser
-          controller.enqueue(encoder.encode(`---EVAL_ID:${evalId}---\n`));
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunkStr = new TextDecoder().decode(value);
-            fullGeneratedText += chunkStr;
-            controller.enqueue(value);
-          }
-          controller.close();
-
-          // After stream completes, asynchronously parse metrics and save to DB
-          try {
-            // Extract extracted text if present
-            let extractedAnswer = answerText;
-            const extractedTextMatch = fullGeneratedText.match(/---EXTRACTED_TEXT_START---([\s\S]*?)---EXTRACTED_TEXT_END---/);
-            if (extractedTextMatch) {
-              extractedAnswer = extractedTextMatch[1].trim();
-            }
-
-            // Clean up the output markdown before saving to the DB so the user doesn't see the raw OCR section if they don't need to (or we can save it as is)
-            const cleanMarkdown = fullGeneratedText.replace(/---EXTRACTED_TEXT_START---[\s\S]*?---EXTRACTED_TEXT_END---/, '').trim();
-
-            // Extract scores using Regex with robust NaN fallback
-            const provisionsMatch = cleanMarkdown.match(/Legal Provisions & Citations:\s*(\d+)/i);
-            const analysisMatch = cleanMarkdown.match(/Analysis & Application:\s*(\d+)/i);
-            const conclusionMatch = cleanMarkdown.match(/Conclusion:\s*(\d+)/i);
-            const formattingMatch = cleanMarkdown.match(/Secretarial Formatting:\s*(\d+)/i);
-            const totalScoreMatch = cleanMarkdown.match(/Total Score:\s*(\d+)/i);
-
-            const scoreProvisions = (provisionsMatch && !isNaN(parseInt(provisionsMatch[1], 10))) ? parseInt(provisionsMatch[1], 10) : 0;
-            const scoreAnalysis = (analysisMatch && !isNaN(parseInt(analysisMatch[1], 10))) ? parseInt(analysisMatch[1], 10) : 0;
-            const scoreConclusion = (conclusionMatch && !isNaN(parseInt(conclusionMatch[1], 10))) ? parseInt(conclusionMatch[1], 10) : 0;
-            const scoreFormatting = (formattingMatch && !isNaN(parseInt(formattingMatch[1], 10))) ? parseInt(formattingMatch[1], 10) : 0;
-            
-            let totalScore = 0;
-            if (totalScoreMatch && !isNaN(parseInt(totalScoreMatch[1], 10))) {
-              totalScore = parseInt(totalScoreMatch[1], 10);
-            } else {
-              totalScore = scoreProvisions + scoreAnalysis + scoreConclusion + scoreFormatting;
-            }
-            
-            // Limit score boundaries to valid schema values
-            totalScore = Math.max(0, Math.min(100, isNaN(totalScore) ? 0 : totalScore));
-
-
-            const aiFeedbackObj = {
-              markdown: cleanMarkdown,
-              breakdown: [
-                { q: "Legal Provisions", topic: "Companies Act & Case Laws", awarded: scoreProvisions, max: 35, comments: "Verification of cited sections" },
-                { q: "Analysis & Application", topic: "Facts Parsing", awarded: scoreAnalysis, max: 35, comments: "Application of law to facts" },
-                { q: "Conclusion", topic: "Legal Stance", awarded: scoreConclusion, max: 15, comments: "Definitive conclusion review" },
-                { q: "Secretarial Formatting", topic: "Professional Structure", awarded: scoreFormatting, max: 15, comments: "Provisions -> Analysis -> Conclusion formatting" }
-              ],
-              crag_attempts: ragResult.attempts
-            };
-
-            // ─── SAVE TO SUPABASE (using service-role client to bypass RLS) ───
-            const insertPayload = {
-              id: evalId,
-              user_id: targetUserId,
-              question_text: questionText || '',
-              answer_text: extractedAnswer || answerText || '',
-              ocr_extracted_text: extractedAnswer || answerText || '',
-              ai_feedback: aiFeedbackObj,
-              score: totalScore,
-              max_score: 100,
-              confidence: 95,
-              exam_type: 'CS Executive - Company Law'
-            };
-
-            console.log(`📥 [DB Insert] Attempting to save evaluation ID: ${evalId} for user: ${targetUserId}`);
-
-            const { data: insertData, error: insertError } = await supabaseAdmin
-              .from('evaluations')
-              .insert(insertPayload)
-              .select();
-
-            if (insertError) {
-              console.error('❌ [DB Insert FAILED] Supabase error details:', JSON.stringify(insertError, null, 2));
-              console.error('❌ [DB Insert FAILED] Payload details:', JSON.stringify({ ...insertPayload, ai_feedback: '[truncated]' }));
-              throw new Error(`Database save operation failed: ${insertError.message} (${insertError.code})`);
-            } else {
-              console.log(`✅ [DB Insert SUCCESS] Saved evaluation ID: ${evalId}, rows inserted: ${insertData?.length ?? 0}`);
-              await incrementEvaluationUsage(targetUserId);
-            }
-
-            await updateCSUserAnalytics(targetUserId);
-            console.log('✅ Successfully saved CS evaluation and updated analytics for:', targetUserId);
-
-            const elapsed = Date.now() - startTime;
-            const isOcrSpaceUsed = fullGeneratedText.includes('OCR.Space');
-            await logUserUsage({
-              user_id: targetUserId,
-              subject: 'CS Executive - Company Law',
-              question_length: questionText?.length || 0,
-              answer_length: extractedAnswer?.length || answerText?.length || 0,
-              ocr_provider: isOcrSpaceUsed ? 'OCR.Space' : 'Gemini Vision',
-              gemini_model: 'gemini-3.5-flash',
-              ocr_time_ms: isOcrSpaceUsed ? 2000 : 3000,
-              evaluation_time_ms: elapsed,
-              total_time_ms: elapsed,
-              status: 'success'
-            });
-          } catch (dbErr) {
-            console.error('Failed to parse scores or insert to Supabase:', dbErr);
-            
-            const elapsed = Date.now() - startTime;
-            await logUserUsage({
-              user_id: targetUserId,
-              subject: 'CS Executive - Company Law',
-              question_length: questionText?.length || 0,
-              answer_length: answerText?.length || 0,
-              ocr_provider: 'Gemini Vision',
-              gemini_model: 'gemini-3.5-flash',
-              ocr_time_ms: 0,
-              evaluation_time_ms: elapsed,
-              total_time_ms: elapsed,
-              status: 'failure'
-            });
-          }
-
-        } catch (streamErr) {
-          console.error('Stream error:', streamErr);
-          const elapsed = Date.now() - startTime;
-          await logUserUsage({
-            user_id: targetUserId,
-            subject: 'CS Executive - Company Law',
-            question_length: questionText?.length || 0,
-            answer_length: answerText?.length || 0,
-            ocr_provider: 'Gemini Vision',
-            gemini_model: 'gemini-3.5-flash',
-            ocr_time_ms: 0,
-            evaluation_time_ms: elapsed,
-            total_time_ms: elapsed,
-            status: 'failure'
-          });
-          controller.error(streamErr);
-        }
-      }
+      start(controller) {
+        controller.enqueue(encoder.encode(responseText));
+        controller.close();
+      },
     });
 
     return new Response(stream, {
