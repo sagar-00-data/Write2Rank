@@ -10,7 +10,7 @@ export default function Logo({ className = '', size = 36, color = 'var(--accent-
   return (
     <img
       src="/logo.png"
-      alt="Write2Rank Logo"
+      alt="Xaminix Logo"
       width={size}
       height={size}
       className={className}

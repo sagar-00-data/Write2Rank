@@ -201,7 +201,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             
             {/* Desktop Brand Breadcrumb */}
             <div className="hidden sm:flex items-center gap-2.5 text-xs font-medium">
-              <span className="text-zinc-500">Write2Rank</span>
+              <span className="text-zinc-500">Xaminix</span>
               <span className="text-zinc-600">/</span>
               <span className="text-zinc-400 font-semibold">Founder Command Center</span>
             </div>
@@ -272,7 +272,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             {/* Unified Operations Footer */}
             <footer className="pt-8 border-t border-white/[0.04] flex flex-col sm:flex-row justify-between items-center gap-2 pb-8">
               <span className="text-[10px] text-zinc-500 font-medium">
-                Write2Rank Founder Command Center · Production Operations Console
+                Xaminix Founder Command Center · Production Operations Console
               </span>
               <span className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
                 <Clock className="h-3 w-3 text-zinc-600" />

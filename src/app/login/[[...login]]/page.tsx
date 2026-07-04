@@ -25,16 +25,16 @@ export default function LoginPage() {
             <div className="showcase-logo">
               <Logo size={42} color="#ffffff" />
             </div>
-            <span className="showcase-brand">Write2Rank</span>
+            <span className="showcase-brand">Xaminix</span>
           </div>
 
           <div className="showcase-hero">
             <div className="premium-badge">
               <Sparkles size={14} className="sparkle-icon" />
-              <span>Next-Gen Essay Evaluation</span>
+              <span>AI-Powered Answer Evaluation</span>
             </div>
             <h1 className="showcase-title">
-              Elevate your writing to the <span className="highlight-text">highest rank</span>.
+              Practice Smarter. <span className="highlight-text">Score Higher</span>.
             </h1>
             <p className="showcase-subtitle">
               Powering academic excellence with deep, AI-driven assessment and comprehensive performance insights.

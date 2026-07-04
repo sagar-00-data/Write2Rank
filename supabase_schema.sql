@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS analytics (
 -- 4. Insert default Guest User for Phase 1 MVP
 -- This allows guest evaluations to be stored in the database without forcing login/signup yet
 INSERT INTO users (id, name, email)
-VALUES ('00000000-0000-0000-0000-000000000000', 'Guest User', 'guest@write2rank.com')
+VALUES ('00000000-0000-0000-0000-000000000000', 'Guest User', 'guest@xaminix.com')
 ON CONFLICT (email) DO NOTHING;
 
 -- 5. Insert default Analytics row for Guest User

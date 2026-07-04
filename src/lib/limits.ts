@@ -56,7 +56,7 @@ export async function getOrUpdateUserLimits(userId: string): Promise<UserLimitIn
           {
             id: userId,
             name: 'New Beta User',
-            email: 'user@write2rank.com',
+            email: 'user@xaminix.com',
             plan: 'Beta Tester',
             status: 'Active',
             last_reset_date: todayStr

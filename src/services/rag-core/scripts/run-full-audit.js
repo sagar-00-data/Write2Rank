@@ -145,7 +145,7 @@ ${ragContext}
 
 async function runAudit() {
   console.log('==========================================================');
-  console.log('       WRITE2RANK RAG SYSTEM VALIDATION AUDIT             ');
+  console.log('       XAMINIX RAG SYSTEM VALIDATION AUDIT                ');
   console.log('==========================================================\n');
 
   // STEP 5: KNOWLEDGE BASE AUDIT

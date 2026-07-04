@@ -66,7 +66,7 @@ export default function AdminLoginPage() {
             <div className="logo-box">
               <Activity className="logo-icon" />
             </div>
-            <span className="brand-title">Write2Rank</span>
+            <span className="brand-title">Xaminix</span>
             <span className="badge-ops">Restricted Console</span>
           </div>
 
@@ -75,7 +75,7 @@ export default function AdminLoginPage() {
             <div className="clearance-tag">RESTRICTED EXECUTIVE ACCESS</div>
             <h1 className="hero-heading">Founder Command Center</h1>
             <p className="hero-subtext">
-              Restricted access to the operational intelligence platform powering Write2Rank.
+              Restricted access to the operational intelligence platform powering Xaminix.
             </p>
           </div>
 
@@ -121,7 +121,7 @@ export default function AdminLoginPage() {
             <div className="logo-box">
               <Activity className="logo-icon" />
             </div>
-            <span className="brand-title">Write2Rank</span>
+            <span className="brand-title">Xaminix</span>
           </div>
 
           {/* Heading */}

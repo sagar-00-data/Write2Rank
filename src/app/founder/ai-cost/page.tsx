@@ -46,7 +46,7 @@ export default function FounderAiCostPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    Promise.resolve().then(() => fetchData());
   }, [fetchData]);
 
   if (loading) {

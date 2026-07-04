@@ -45,7 +45,7 @@ export default function AdminEvaluationsPage() {
   }, []);
 
   const filteredEvals = evaluations.filter((e) => {
-    const userString = e.users ? `${e.users.name} ${e.users.email}` : 'guest guest@write2rank.com';
+    const userString = e.users ? `${e.users.name} ${e.users.email}` : 'guest guest@xaminix.com';
     return (
       e.id.toLowerCase().includes(search.toLowerCase()) ||
       e.exam_type.toLowerCase().includes(search.toLowerCase()) ||
@@ -123,7 +123,7 @@ export default function AdminEvaluationsPage() {
                   </td>
                   <td>
                     <div className="font-semibold text-zinc-200 text-[13px]">{item.users?.name || 'Guest User'}</div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5 font-medium">{item.users?.email || 'guest@write2rank.com'}</div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5 font-medium">{item.users?.email || 'guest@xaminix.com'}</div>
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <span className="fd-status-pill green">

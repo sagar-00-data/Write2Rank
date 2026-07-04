@@ -213,7 +213,7 @@ async function evaluateChunkRelevance(
   const chunksText = chunks.map((c, i) => `[Chunk ${i + 1}]:\n${c}`).join('\n\n');
 
   const prompt = `
-  You are an AI Legal Research Evaluator for Write2Rank, reviewing retrieved ICSI Company Law reference materials.
+  You are an AI Legal Research Evaluator for Xaminix, reviewing retrieved ICSI Company Law reference materials.
   
   Given the student question and the retrieved text chunks:
   
@@ -339,7 +339,7 @@ export async function runCorrectiveRag(
 
 
 
-// --- MODULAR PROMPT ARCHITECTURE FOR WRITE2RANK SCORING ENGINE ---
+// --- MODULAR PROMPT ARCHITECTURE FOR XAMINIX SCORING ENGINE ---
 
 const MODULE_A_IDENTITY = `
 ### MODULE A: Identity & Role
@@ -456,13 +456,13 @@ Provide a bulleted list of omissions:
 [Provide concrete, actionable advice on what to add or correct to get full marks for this specific question. Mention specific sections, rules, and statutory requirements.]
 
 ### 8. IMPROVED CANDIDATE ANSWER
-[Generate an improved version of the student's own answer. Retain their structure/formatting where possible, but correct legal and secretarial deficiencies, add rules, and improve flow.]
+[Rewrite ONLY the student's answer. Preserve the student's structure. Improve: legal wording, missing provisions, missing Rules, presentation, and conclusion. Do NOT convert it into a topper answer; it should look like the student's own answer after correction.]
 
 ### 9. PERFECT 5-MARK MODEL ANSWER
-[Generate a complete, high-quality topper-grade model answer suitable for a 5-mark question. Write the full text with clear sections: PROVISIONS, ANALYSIS, and CONCLUSION.]
+[Generate a realistic, time-constrained model answer exactly as an AIR-level CS Executive student would write in the exam within the allotted time. DO NOT write textbook copy. Maximum 1-2 pages equivalent (approx 200-300 words), using proper headings, bullet points, relevant Sections, Rules, Forms, brief explanation, practical legal language, and a strong conclusion.]
 
 ### 10. REVISION NOTES
-[Provide 5 to 10 bulleted revision points covering the core legal concepts tested in this question.]
+[Provide a maximum of 8 concise bullet points in an exam-revision style. No paragraphs. No explanations. Only the most important statutory takeaways.]
 
 ### 11. DEBUG ENGINE AND CALIBRATION DATA
 Provide the internal engine logs:

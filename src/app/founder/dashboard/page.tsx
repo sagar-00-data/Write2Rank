@@ -752,7 +752,7 @@ export default function FounderOperationsCenter() {
       {/* ── FOOTER META ─────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
         <span style={{ fontSize: 10, color: C.textDim }}>
-          Write2Rank Founder Operations Center · Data points: {data.meta.dataPoints.userLogs} usage logs, {data.meta.dataPoints.geminiLogs} Gemini calls
+          Xaminix Founder Operations Center · Data points: {data.meta.dataPoints.userLogs} usage logs, {data.meta.dataPoints.geminiLogs} Gemini calls
         </span>
         <span style={{ fontSize: 10, color: C.textDim, fontFamily: 'monospace' }}>
           Generated {new Date(data.meta.generatedAt).toLocaleTimeString()}

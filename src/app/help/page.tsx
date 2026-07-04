@@ -10,7 +10,7 @@ interface FAQ {
 const FAQS: FAQ[] = [
   {
     question: 'How does the AI evaluation work?',
-    answer: 'Write2Rank uses Google\'s Gemini AI engine to analyze your handwritten exam answers. First, our OCR (Optical Character Recognition) extracts text from your uploaded images or PDFs. Then, the AI evaluates your answers against professional exam standards, awarding marks and providing detailed feedback.',
+    answer: 'Xaminix uses Google\'s Gemini AI engine to analyze your handwritten exam answers. First, our OCR (Optical Character Recognition) extracts text from your uploaded images or PDFs. Then, the AI evaluates your answers against professional exam standards, awarding marks and providing detailed feedback.',
   },
   {
     question: 'What file formats are supported?',
@@ -21,8 +21,8 @@ const FAQS: FAQ[] = [
     answer: 'Our Gemini Vision-powered OCR is highly accurate for standard handwriting. For very messy or unclear handwriting, you can manually edit the extracted text before evaluation, or use Google Docs (Open with Google Docs) for even better accuracy.',
   },
   {
-    question: 'What exams does Write2Rank support?',
-    answer: 'Currently, Write2Rank supports CS Executive (Company Law, JIGL), CA Final (Financial Reporting), CA Inter (Corporate Law), and CMA Final (SFM). More exam types are being added regularly.',
+    question: 'What exams does Xaminix support?',
+    answer: 'Currently, Xaminix supports CS Executive (Company Law, JIGL), CA Final (Financial Reporting), CA Inter (Corporate Law), and CMA Final (SFM). More exam types are being added regularly.',
   },
   {
     question: 'Is my data stored securely?',
@@ -51,7 +51,7 @@ export default function HelpPage() {
   return (
     <div className="page-container animate-fade-in">
       <h1 className="page-title">Help & Support</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Learn how to get the most out of Write2Rank.</p>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Learn how to get the most out of Xaminix.</p>
 
       <div className="card" style={{ background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(99, 102, 241, 0.05))', border: '1px solid rgba(37, 99, 235, 0.15)' }}>
         <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -104,7 +104,7 @@ export default function HelpPage() {
         <Mail size={32} style={{ color: 'var(--accent-color)', marginBottom: '16px' }} />
         <h3 style={{ marginBottom: '8px' }}>Still need help?</h3>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Contact us for support and we&rsquo;ll get back to you as soon as possible.</p>
-        <a href="mailto:support@write2rank.com" className="btn" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+        <a href="mailto:support@xaminix.com" className="btn" style={{ display: 'inline-flex', textDecoration: 'none' }}>
           <Mail size={16} />
           Contact Support
         </a>

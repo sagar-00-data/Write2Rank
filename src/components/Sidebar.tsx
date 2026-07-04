@@ -32,7 +32,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       <div className="sidebar-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Logo size={32} />
-          <div className="sidebar-title">Write2Rank</div>
+          <div className="sidebar-title">Xaminix</div>
         </div>
         <button className="mobile-close" onClick={() => setIsOpen(false)}>
           <X size={18} />

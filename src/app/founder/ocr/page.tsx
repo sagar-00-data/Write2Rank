@@ -49,7 +49,7 @@ export default function FounderOcrPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    Promise.resolve().then(() => fetchData());
   }, [fetchData]);
 
   if (loading) {

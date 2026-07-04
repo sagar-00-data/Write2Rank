@@ -570,13 +570,37 @@ export default function EvaluationDetail() {
             <Award size={20} color="#2563eb" /> Executive Verdict Summary
           </h4>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>
-              {(evaluation.score / 20).toFixed(2)} / 5.0
-            </span>
-            <span style={{ fontSize: '20px', color: '#f59e0b', letterSpacing: '2px' }}>
-              {'★'.repeat(Math.round(evaluation.score / 20)) + '☆'.repeat(5 - Math.round(evaluation.score / 20))}
-            </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Overall Marks</span>
+              <span style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
+                {(evaluation.score / 20).toFixed(2)} / 5.0
+              </span>
+            </div>
+            <div style={{ height: '32px', width: '1px', backgroundColor: '#e2e8f0' }} />
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Verdict Rating</span>
+              <span style={{ fontSize: '20px', color: '#f59e0b', letterSpacing: '2px', lineHeight: '28px', display: 'block' }}>
+                {'★'.repeat(Math.round(evaluation.score / 20)) + '☆'.repeat(5 - Math.round(evaluation.score / 20))}
+              </span>
+            </div>
+            <div style={{ height: '32px', width: '1px', backgroundColor: '#e2e8f0' }} />
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Evaluation Confidence</span>
+              <span style={{ 
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 10px', 
+                borderRadius: '20px', 
+                fontSize: '11px', 
+                fontWeight: 700,
+                backgroundColor: (evaluation.confidence || 96) >= 90 ? '#dcfce7' : '#fef3c7',
+                color: (evaluation.confidence || 96) >= 90 ? '#15803d' : '#d97706',
+                border: `1px solid ${(evaluation.confidence || 96) >= 90 ? '#bbf7d0' : '#fde68a'}`
+              }}>
+                {evaluation.confidence || 96}%
+              </span>
+            </div>
           </div>
 
           <p style={{ margin: '0 0 24px 0', fontSize: '15px', lineHeight: '1.7', color: '#334155', fontWeight: 500 }}>
@@ -945,7 +969,7 @@ export default function EvaluationDetail() {
                     .map(line => line.trim())
                     .filter(line => line && (line.startsWith('-') || line.startsWith('*') || /^\d+\./.test(line) || line.length > 5))
                     .map(line => line.replace(/^[-*\s\d.]+\s*/, ''))
-                    .slice(0, 10)
+                    .slice(0, 8)
                     .map((note, idx) => (
                       <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '14.5px', color: '#475569', lineHeight: '1.6' }}>
                         <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>•</span>

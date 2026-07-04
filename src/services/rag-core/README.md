@@ -1,4 +1,4 @@
-# Write2Rank Agentic RAG Core System
+# Xaminix Agentic RAG Core System
 
 This directory houses the isolated Agentic RAG core architecture designed for CS Executive Company Law & Practice evaluations.
 

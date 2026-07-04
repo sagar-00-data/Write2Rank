@@ -29,7 +29,7 @@ export default function FounderRagPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    Promise.resolve().then(() => fetchData());
   }, [fetchData]);
 
   if (loading) {
