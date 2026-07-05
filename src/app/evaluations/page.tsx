@@ -7,7 +7,6 @@ import {
   AlertCircle, FileText, Info, BookOpen
 } from 'lucide-react';
 import { EvaluationRecord } from '@/app/page';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
 // Custom tag map type
@@ -71,19 +70,14 @@ export default function EvaluationsList() {
       }
 
       try {
-        const targetUserId = user.id;
+        const res = await fetch('/api/evaluations');
+        if (!res.ok) {
+          throw new Error(`API error: ${res.status}`);
+        }
+        const data = await res.json();
+        const dbEvals = data.evaluations || [];
 
-        const { data: dbEvals, error } = await supabase
-          .from('evaluations')
-          .select('*')
-          .eq('user_id', targetUserId)
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.warn('Supabase fetch error, falling back to localStorage:', error);
-          const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
-          setEvals(savedEvals);
-        } else if (dbEvals && dbEvals.length > 0) {
+        if (dbEvals.length > 0) {
           const transformed: EvaluationRecord[] = dbEvals.map((e: any) => ({
             id: e.id,
             score: e.score,
@@ -106,7 +100,7 @@ export default function EvaluationsList() {
           setEvals([]);
         }
       } catch (err) {
-        console.warn('Failed to load from Supabase:', err);
+        console.warn('Failed to load from evaluations API, falling back to localStorage:', err);
         const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
         setEvals(savedEvals);
       } finally {
@@ -159,25 +153,25 @@ export default function EvaluationsList() {
       date: new Date().toISOString()
     };
 
-    // Insert payload
-    const insertPayload = {
-      id: newId,
-      user_id: user?.id || '00000000-0000-0000-0000-000000000000',
-      question_text: '',
-      answer_text: item.extractedText || '',
-      ocr_extracted_text: item.extractedText || '',
-      ai_feedback: {
-        markdown: item.feedback?.overall || '',
-        breakdown: item.breakdown || []
-      },
-      score: item.score,
-      max_score: item.maxScore,
-      confidence: item.confidence,
-      exam_type: item.exam
-    };
-
     try {
-      await supabase.from('evaluations').insert(insertPayload);
+      await fetch('/api/evaluations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: newId,
+          question_text: '',
+          answer_text: item.extractedText || '',
+          ocr_extracted_text: item.extractedText || '',
+          ai_feedback: {
+            markdown: item.feedback?.overall || '',
+            breakdown: item.breakdown || []
+          },
+          score: item.score,
+          max_score: item.maxScore,
+          confidence: item.confidence,
+          exam_type: item.exam
+        })
+      });
     } catch (e) {
       console.warn('Local/offline copy instead of DB sync:', e);
     }
@@ -206,9 +200,9 @@ export default function EvaluationsList() {
       const isRestored = currentPinned.some((e: any) => e.id === id);
       if (!isRestored) {
         try {
-          await supabase.from('evaluations').delete().eq('id', id);
+          await fetch(`/api/evaluations?id=${id}`, { method: 'DELETE' });
         } catch (err) {
-          console.error('Database deletion failed:', err);
+          console.error('API deletion failed:', err);
         }
       }
     }, 5000);

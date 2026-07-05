@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { Upload, CheckCircle, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface EvaluationRecord {
@@ -49,19 +48,14 @@ export default function Dashboard() {
       }
 
       try {
-        const targetUserId = user.id; // Use dynamic user ID
+        const res = await fetch('/api/evaluations');
+        if (!res.ok) {
+          throw new Error(`API error: ${res.status}`);
+        }
+        const data = await res.json();
+        const dbEvals = data.evaluations || [];
 
-        const { data: dbEvals, error } = await supabase
-          .from('evaluations')
-          .select('*')
-          .eq('user_id', targetUserId)
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.warn('Supabase fetch error, falling back to localStorage:', error);
-          const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
-          setEvals(savedEvals);
-        } else if (dbEvals && dbEvals.length > 0) {
+        if (dbEvals.length > 0) {
           const transformed: EvaluationRecord[] = dbEvals.map((e: any) => ({
             id: e.id,
             score: e.score,
@@ -84,7 +78,7 @@ export default function Dashboard() {
           setEvals([]); // User has no evaluations
         }
       } catch (err) {
-        console.warn('Failed to connect to Supabase, falling back to localStorage:', err);
+        console.warn('Failed to connect to evaluations API, falling back to localStorage:', err);
         const savedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
         setEvals(savedEvals);
       } finally {
