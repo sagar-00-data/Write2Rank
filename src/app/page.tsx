@@ -1392,10 +1392,6 @@ function PublicLandingPage() {
 
     </div>
   );
-}    </footer>
-
-    </div>
-  );
 }
 
 // ==========================================
