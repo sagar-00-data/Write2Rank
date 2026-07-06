@@ -225,73 +225,195 @@ function StudentDashboard({ user }: { user: any }) {
 
 // ==========================================
 // 2. PUBLIC LANDING PAGE (NEW IMPLEMENTATION)
+// =========================================// ==========================================
+// 2. PUBLIC LANDING PAGE (NEW IMPLEMENTATION)
 // ==========================================
 function PublicLandingPage() {
   const [activePreviewTab, setActivePreviewTab] = useState<'ocr' | 'score' | 'feedback' | 'provisions'>('ocr');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [animatedScore, setAnimatedScore] = useState<number>(0);
+  const [activeProgressTab, setActiveProgressTab] = useState<'trends' | 'weakness' | 'topics'>('trends');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimatedScore((prev) => {
+        if (prev >= 4.25) {
+          return 4.25;
+        }
+        return Math.min(4.25, Number((prev + 0.15).toFixed(2)));
+      });
+    }, 45);
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
   };
 
   return (
-    <div style={{ backgroundColor: '#ffffff', minHeight: '100vh', fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
+    <div style={{ backgroundColor: '#ffffff', minHeight: '100vh', fontFamily: 'Inter, system-ui, -apple-system, sans-serif', color: '#0f172a' }}>
       
+      {/* Global CSS Inject for animations and overrides */}
+      <style>{`
+        html {
+          scroll-behavior: smooth;
+        }
+        @keyframes float-slower {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(1deg); }
+        }
+        @keyframes float-faster {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(-1.5deg); }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 15px rgba(99, 91, 255, 0.15); }
+          50% { box-shadow: 0 0 30px rgba(99, 91, 255, 0.35); }
+        }
+        @keyframes scan-glow {
+          0% { top: 0%; opacity: 0.8; }
+          50% { top: 100%; opacity: 1; }
+          100% { top: 0%; opacity: 0.8; }
+        }
+        @keyframes beam-line {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(100%); }
+        }
+        .float-card-1 {
+          animation: float-slower 6s infinite ease-in-out;
+        }
+        .float-card-2 {
+          animation: float-faster 5s infinite ease-in-out;
+        }
+        .btn-premium-primary {
+          background: linear-gradient(135deg, #0f172a, #27272a);
+          color: #ffffff;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-premium-primary:hover {
+          background: linear-gradient(135deg, #2563eb, #7c3aed);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
+        }
+        .btn-premium-secondary {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          color: #334155;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-premium-secondary:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+          color: #0f172a;
+          transform: translateY(-2px);
+        }
+        .bento-card {
+          background: #ffffff;
+          border: 1px solid #f1f5f9;
+          border-radius: 24px;
+          padding: 32px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .bento-card:hover {
+          transform: translateY(-4px);
+          border-color: #e2e8f0;
+          box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+        }
+        .gradient-text {
+          background: linear-gradient(135deg, #1e40af 10%, #7c3aed 70%, #10b981 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .nav-link {
+          position: relative;
+          color: #475569;
+          font-weight: 500;
+          text-decoration: none;
+          transition: color 0.2s;
+        }
+        .nav-link:hover {
+          color: #2563eb;
+        }
+        .nav-link::after {
+          content: '';
+          position: absolute;
+          width: 0;
+          height: 2px;
+          bottom: -4px;
+          left: 0;
+          background-color: #2563eb;
+          transition: width 0.2s;
+        }
+        .nav-link:hover::after {
+          width: 100%;
+        }
+        /* Mobile responsive adjustments */
+        @media (max-width: 768px) {
+          .mobile-nav-hide {
+            display: none !important;
+          }
+          .hero-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .bento-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
       {/* 1. Header Navigation */}
       <header style={{
         position: 'sticky',
         top: 0,
-        zIndex: 50,
+        zIndex: 100,
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(16px)',
         borderBottom: '1px solid #f1f5f9'
       }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ 
-              width: '32px', 
-              height: '32px', 
-              borderRadius: '8px', 
-              background: 'linear-gradient(135deg, #1e3a8a, #7c3aed)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: '16px'
-            }}>
-              X
-            </div>
-            <span style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Xaminix</span>
-          </div>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px', height: '76px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Logo Brandmark */}
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+            <img 
+              src="/logo.png" 
+              alt="Xaminix Logo" 
+              style={{ width: '32px', height: '32px', objectFit: 'contain' }} 
+            />
+            <span style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.7px', display: 'inline-flex', alignItems: 'center' }}>
+              Xaminix
+            </span>
+          </Link>
 
-          <nav style={{ display: 'flex', gap: '32px' }} className="hidden md:flex">
-            <a href="#how-it-works" style={{ fontSize: '14.5px', color: '#475569', textDecoration: 'none', fontWeight: 500 }} className="hover:text-blue-600 transition-colors">How It Works</a>
-            <a href="#features" style={{ fontSize: '14.5px', color: '#475569', textDecoration: 'none', fontWeight: 500 }} className="hover:text-blue-600 transition-colors">Outcomes</a>
-            <a href="#preview" style={{ fontSize: '14.5px', color: '#475569', textDecoration: 'none', fontWeight: 500 }} className="hover:text-blue-600 transition-colors">Interactive Demo</a>
-            <a href="#roadmap" style={{ fontSize: '14.5px', color: '#475569', textDecoration: 'none', fontWeight: 500 }} className="hover:text-blue-600 transition-colors">Roadmap</a>
-            <a href="#faq" style={{ fontSize: '14.5px', color: '#475569', textDecoration: 'none', fontWeight: 500 }} className="hover:text-blue-600 transition-colors">FAQ</a>
+          {/* Navigation Links */}
+          <nav style={{ display: 'flex', gap: '32px' }} className="mobile-nav-hide">
+            <a href="#how-it-works" className="nav-link">How It Works</a>
+            <a href="#features" className="nav-link">Features</a>
+            <a href="#preview" className="nav-link">Demo Report</a>
+            <a href="#comparison" className="nav-link">Why Xaminix</a>
+            <a href="#analytics" className="nav-link">Analytics</a>
+            <a href="#roadmap" className="nav-link">Roadmap</a>
+            <a href="#faq" className="nav-link">FAQ</a>
           </nav>
 
+          {/* Right CTAs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <Link href="/login" style={{ textDecoration: 'none', fontSize: '14.5px', color: '#0f172a', fontWeight: 600 }} className="hover:text-blue-600 transition-colors">
-              Sign In
+            <Link href="/login" style={{ textDecoration: 'none', fontSize: '14.5px', color: '#475569', fontWeight: 600 }} className="hover:text-blue-600 transition-colors">
+              Log In
             </Link>
             <Link href="/login" style={{ textDecoration: 'none' }}>
-              <button style={{
-                backgroundColor: '#0f172a',
-                color: '#ffffff',
+              <button className="btn-premium-primary" style={{
                 border: 'none',
-                padding: '10px 18px',
+                padding: '10px 20px',
                 borderRadius: '10px',
-                fontSize: '14px',
+                fontSize: '14.5px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px'
-              }} className="hover:bg-slate-800 transition-colors">
-                Get Started <ArrowRight size={14} />
+                gap: '8px'
+              }}>
+                Get Started Free <ArrowRight size={15} />
               </button>
             </Link>
           </div>
@@ -300,194 +422,251 @@ function PublicLandingPage() {
 
       {/* 2. Hero Section */}
       <section style={{ 
-        padding: '80px 24px 100px 24px', 
-        background: 'radial-gradient(circle at top right, rgba(124, 58, 237, 0.03), transparent 40%), radial-gradient(circle at top left, rgba(37, 99, 235, 0.03), transparent 40%)',
-        overflow: 'hidden'
+        padding: '100px 24px 120px 24px', 
+        background: 'radial-gradient(circle at 80% 20%, rgba(99, 91, 255, 0.05) 0%, transparent 50%), radial-gradient(circle at 10% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 50%)',
+        overflow: 'hidden',
+        position: 'relative'
       }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr', gap: '48px' }} className="lg:grid-cols-2 lg:items-center">
-          
-          {/* Hero Left Content */}
+        {/* Subtle geometric grid background */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: 'linear-gradient(rgba(15, 23, 42, 0.01) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.01) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+          maskImage: 'radial-gradient(ellipse at center, black, transparent 80%)',
+          pointerEvents: 'none'
+        }} />
+
+        <div className="hero-grid" style={{ maxWidth: '1280px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '64px', alignItems: 'center' }}>
+          {/* Left Hero Content */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            {/* Pill Badge */}
             <div style={{ 
               display: 'inline-flex', 
               alignItems: 'center', 
-              gap: '6px', 
+              gap: '8px', 
               padding: '6px 14px', 
-              backgroundColor: '#eff6ff', 
-              border: '1px solid #bfdbfe',
+              backgroundColor: '#f5f3ff', 
+              border: '1px solid #ddd6fe',
               borderRadius: '9999px',
-              color: '#2563eb',
+              color: '#6366f1',
               fontSize: '13px',
               fontWeight: 600,
-              marginBottom: '20px'
+              marginBottom: '28px'
             }}>
-              <Sparkles size={14} /> AI-Powered Examiner Grading
+              <Sparkles size={14} style={{ color: '#7c3aed' }} /> AI-Powered. Examiner-Calibrated. Result-Focused.
             </div>
+
             <h1 style={{ 
-              fontSize: '48px', 
+              fontSize: '56px', 
               fontWeight: 800, 
               color: '#0f172a', 
-              lineHeight: '1.15', 
-              letterSpacing: '-1.5px', 
-              margin: '0 0 20px 0' 
-            }} className="sm:text-5xl md:text-6xl">
-              Turn practice answers into <span style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>higher exam scores</span>.
+              lineHeight: '1.1', 
+              letterSpacing: '-1.8px', 
+              margin: '0 0 24px 0'
+            }}>
+              Turn practice into performance: <span className="gradient-text">Master every answer</span> before the exam.
             </h1>
+
             <p style={{ 
-              fontSize: '17px', 
+              fontSize: '18px', 
               color: '#475569', 
               lineHeight: '1.65', 
-              margin: '0 0 36px 0', 
-              maxWidth: '540px' 
+              margin: '0 0 40px 0', 
+              maxWidth: '560px' 
             }}>
-              Upload your handwritten exam answer sheets. Xaminix automatically extracts the handwriting, checks your statutory citations, verifies key concepts, and evaluates your paper using realistic examiner calibration guidelines.
+              Upload your handwritten exam answer sheets. Xaminix automatically extracts the handwriting, checks statutory legal citations, audits conceptual coverage, and scores your paper using calibrated examiner rubrics.
             </p>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
+            {/* CTAs */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', width: '100%', marginBottom: '48px' }}>
               <Link href="/login" style={{ textDecoration: 'none' }}>
-                <button style={{
-                  backgroundColor: '#2563eb',
-                  color: '#ffffff',
-                  padding: '16px 28px',
+                <button className="btn-premium-primary" style={{
+                  padding: '16px 32px',
                   borderRadius: '12px',
-                  fontSize: '15px',
+                  fontSize: '15.5px',
                   fontWeight: 600,
                   border: 'none',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 10px 20px -5px rgba(37, 99, 235, 0.2)'
-                }} className="hover:bg-blue-700 transition-colors">
-                  Evaluate My Answer <ArrowRight size={16} />
+                  gap: '8px'
+                }}>
+                  Evaluate My First Answer <ArrowRight size={16} />
                 </button>
               </Link>
-              <a href="#preview" style={{ textDecoration: 'none' }}>
-                <button style={{
-                  backgroundColor: '#ffffff',
-                  color: '#475569',
-                  padding: '16px 28px',
+              <a href="#how-it-works" style={{ textDecoration: 'none' }}>
+                <button className="btn-premium-secondary" style={{
+                  padding: '16px 32px',
                   borderRadius: '12px',
-                  fontSize: '15px',
+                  fontSize: '15.5px',
                   fontWeight: 600,
-                  border: '1px solid #e2e8f0',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px'
-                }} className="hover:bg-slate-50 transition-colors">
-                  <Play size={16} /> See How It Works
+                }}>
+                  <Play size={16} fill="currentColor" /> See How It Works
                 </button>
               </a>
             </div>
 
-            {/* Micro proof badges */}
-            <div style={{ display: 'flex', gap: '28px', marginTop: '48px', borderTop: '1px solid #f1f5f9', paddingTop: '28px', width: '100%' }}>
+            {/* Core Trust Badges */}
+            <div style={{ display: 'flex', gap: '32px', width: '100%', borderTop: '1px solid #f1f5f9', paddingTop: '32px' }}>
               <div>
-                <span style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', display: 'block' }}>&lt; 60s</span>
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Evaluation Time</span>
+                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>SPEED</span>
+                <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', display: 'block', marginTop: '4px' }}>Under 60 Secs</span>
               </div>
               <div style={{ width: '1px', backgroundColor: '#e2e8f0' }} />
               <div>
-                <span style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', display: 'block' }}>96.8%</span>
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Handwriting Recognition</span>
+                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>CONFIDENCE</span>
+                <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', display: 'block', marginTop: '4px' }}>96.8% Accuracy</span>
+              </div>
+              <div style={{ width: '1px', backgroundColor: '#e2e8f0' }} />
+              <div>
+                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>STUDENTS</span>
+                <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', display: 'block', marginTop: '4px' }}>CS & Law Focus</span>
               </div>
             </div>
           </div>
 
-          {/* Hero Right Visual (OCR scan simulation) */}
-          <div style={{ position: 'relative' }}>
+          {/* Right Hero Dashboard Mockup Visual */}
+          <div style={{ position: 'relative', width: '100%' }}>
             <div style={{
-              backgroundColor: '#f8fafc',
+              backgroundColor: '#ffffff',
               border: '1px solid #e2e8f0',
               borderRadius: '24px',
-              padding: '24px',
-              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.08)',
+              padding: '28px',
+              boxShadow: '0 30px 60px -15px rgba(15, 23, 42, 0.08), 0 0 40px rgba(99, 91, 255, 0.02)',
               position: 'relative',
               overflow: 'hidden'
-            }}>
-              {/* Animated Scan Line */}
+            }} className="float-card-1">
+              
+              {/* Scan Beam Effect */}
               <div style={{
                 position: 'absolute',
                 left: 0,
                 right: 0,
-                height: '3px',
-                background: 'linear-gradient(90deg, transparent, #10b981, transparent)',
-                boxShadow: '0 0 12px #10b981',
+                height: '4px',
+                background: 'linear-gradient(90deg, transparent, #10b981 30%, #10b981 70%, transparent)',
+                boxShadow: '0 0 15px #10b981, 0 0 5px #10b981',
                 zIndex: 20,
-                animation: 'scan 4s infinite linear'
+                animation: 'scan-glow 4s infinite ease-in-out'
               }} />
-              <style>{`
-                @keyframes scan {
-                  0% { top: 0%; }
-                  50% { top: 100%; }
-                  100% { top: 0%; }
-                }
-              `}</style>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '16px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Handwritten Answer Sheet</span>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: '6px', height: '6px', backgroundColor: '#10b981', borderRadius: '50%' }} /> OCR active
+              {/* Mockup Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ width: '10px', height: '10px', backgroundColor: '#ef4444', borderRadius: '50%' }} />
+                  <span style={{ width: '10px', height: '10px', backgroundColor: '#eab308', borderRadius: '50%' }} />
+                  <span style={{ width: '10px', height: '10px', backgroundColor: '#22c55e', borderRadius: '50%' }} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginLeft: '8px', fontFamily: 'monospace' }}>eval-session_982b.xml</span>
+                </div>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', backgroundColor: '#ecfdf5', padding: '4px 8px', borderRadius: '9999px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '5px', height: '5px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block' }} /> Live Calibrating
                 </span>
               </div>
 
-              {/* Hand written look answer simulation */}
-              <div style={{ fontStyle: 'italic', color: '#1e3a8a', fontSize: '15px', lineHeight: '2', fontFamily: 'serif', padding: '0 8px' }}>
-                Under Section 96 of Companies Act, 2013, Annual General Meeting (AGM) is a statutory requirement for every company (other than OPC).
-                The first AGM must be held within 9 months of the closing of the first financial year. For subsequent years, the gap between two consecutive AGMs shall not exceed 15 months...
-              </div>
+              {/* Main Content Layout in Mockup */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+                {/* Handwritten Answer Mock */}
+                <div style={{ padding: '20px', backgroundColor: '#fafaf9', border: '1px dashed #e2e8f0', borderRadius: '16px', position: 'relative' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '10px' }}>Handwritten Answer Sheet Preview</span>
+                  <div style={{ 
+                    fontStyle: 'italic', 
+                    color: '#1e3a8a', 
+                    fontSize: '15px', 
+                    lineHeight: '2.1', 
+                    fontFamily: '"Georgia", serif', 
+                    background: 'linear-gradient(rgba(226,232,240,0.4) 1px, transparent 1px)',
+                    backgroundSize: '100% 2.1em',
+                    padding: '0 8px'
+                  }}>
+                    Q. Discuss the powers of the general meeting regarding Section 96 of Companies Act, 2013.<br/>
+                    Every company must hold an Annual General Meeting each year... The gap between two AGMs cannot exceed 15 months...
+                  </div>
+                </div>
 
-              <div style={{ 
-                marginTop: '20px', 
-                padding: '16px', 
-                backgroundColor: '#ffffff', 
-                border: '1px solid #bfdbfe', 
-                borderRadius: '16px',
-                boxShadow: '0 4px 12px rgba(37,99,235,0.02)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <Award size={16} color="#2563eb" />
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Real-time Calibrated Marks</span>
+                {/* Score & OCR Floating Info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ padding: '16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#166534', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>
+                      <CheckCircle size={14} /> Sections Tracked
+                    </div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#14532d' }}>Sec 96 Verified</div>
+                    <span style={{ fontSize: '11px', color: '#166534' }}>Companies Act, 2013</span>
+                  </div>
+
+                  <div style={{ padding: '16px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1e40af', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>
+                      <Award size={14} /> Total Score
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e3a8a' }}>
+                      {animatedScore.toFixed(2)} / 5.00
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#1e40af' }}>Grade: Excellent</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a' }}>3.75</span>
-                  <span style={{ fontSize: '13px', color: '#64748b' }}>/ 5.0 marks</span>
-                  <span style={{ color: '#10b981', fontSize: '12.5px', fontWeight: 600, marginLeft: 'auto' }}>✅ 3 provisions verified</span>
-                </div>
+              </div>
+            </div>
+
+            {/* Overlapping small floating badge */}
+            <div style={{
+              position: 'absolute',
+              bottom: '-20px',
+              right: '-10px',
+              backgroundColor: '#7c3aed',
+              color: '#ffffff',
+              padding: '12px 20px',
+              borderRadius: '16px',
+              boxShadow: '0 10px 25px rgba(124, 58, 237, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              zIndex: 30
+            }} className="float-card-2">
+              <Sparkles size={16} />
+              <div style={{ textAlign: 'left' }}>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.8, display: 'block', fontWeight: 600 }}>OCR Speed</span>
+                <span style={{ fontSize: '14px', fontWeight: 700 }}>Evaluated in 42s</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Who Xaminix Is For */}
-      <section style={{ padding: '60px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: '32px' }}>
-            Built Specifically for Professional Exam Students
-          </h2>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-            gap: '16px' 
-          }}>
+      {/* 3. Built For Professional Exams Section */}
+      <section style={{ padding: '80px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '50px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              CALIBRATED COVERAGE
+            </h2>
+            <h3 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px' }}>
+              Built for Professional Exam Candidates
+            </h3>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
             {[
-              { title: 'CS Executive', active: true, desc: 'Company Law module & secretarial practices.' },
-              { title: 'Company Law', active: true, desc: 'Core Companies Act compliance & case analysis.' },
-              { title: 'CA (Chartered Accountant)', active: false, desc: 'Law & Auditing corporate standards (Coming Late 2026).' },
-              { title: 'CMA (Cost Management)', active: false, desc: 'Corporate laws & financial checkups (Coming Late 2026).' },
-              { title: 'UPSC Law Optional', active: false, desc: 'Descriptive analytical legal modules (Coming 2027).' }
+              { title: 'CS Executive', active: true, desc: 'Company Law module, Secreterial practice standards fully automated.' },
+              { title: 'Company Law', active: true, desc: 'Corporate legal analysis, Case structures, ROC extensions calibration.' },
+              { title: 'CA (Chartered Accountant)', active: false, desc: 'Auditing, Income Tax laws, corporate acts modules. (Coming Late 2026)' },
+              { title: 'CMA (Cost Management)', active: false, desc: 'Financial statutes & Cost accounting laws evaluation. (Coming Late 2026)' },
+              { title: 'UPSC Law Optional', active: false, desc: 'Descriptive answers checking & Constitutional articles. (Coming 2027)' }
             ].map((card, i) => (
               <div key={i} style={{
-                padding: '24px',
+                padding: '28px',
                 backgroundColor: '#ffffff',
-                border: card.active ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                borderRadius: '16px',
+                border: card.active ? '1px solid #e2e8f0' : '1px solid #f1f5f9',
+                borderRadius: '20px',
+                boxShadow: card.active ? '0 10px 25px -5px rgba(15, 23, 42, 0.02)' : 'none',
+                opacity: card.active ? 1 : 0.7,
                 position: 'relative',
-                boxShadow: card.active ? '0 4px 12px rgba(37,99,235,0.02)' : 'none',
-                opacity: card.active ? 1 : 0.75
+                transition: 'all 0.2s ease-in-out'
               }}>
                 {!card.active && (
                   <span style={{ 
@@ -498,111 +677,158 @@ function PublicLandingPage() {
                     fontWeight: 700, 
                     backgroundColor: '#f1f5f9', 
                     color: '#64748b', 
-                    padding: '2px 8px', 
+                    padding: '3px 8px', 
                     borderRadius: '9999px' 
                   }}>Coming Soon</span>
                 )}
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 8px 0' }}>{card.title}</h3>
-                <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>{card.desc}</p>
+                {card.active && (
+                  <span style={{ 
+                    position: 'absolute', 
+                    top: '12px', 
+                    right: '12px', 
+                    fontSize: '9px', 
+                    fontWeight: 700, 
+                    backgroundColor: '#e6fffa', 
+                    color: '#059669', 
+                    padding: '3px 8px', 
+                    borderRadius: '9999px' 
+                  }}>Supported</span>
+                )}
+                <h4 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>{card.title}</h4>
+                <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0, lineHeight: '1.5' }}>{card.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 4. How It Works */}
-      <section id="how-it-works" style={{ padding: '100px 24px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', marginBottom: '16px' }}>
-            Get evaluation feedback in under 60 seconds
-          </h2>
-          <p style={{ fontSize: '16px', color: '#475569', marginBottom: '60px' }}>
-            Our 3-step engine does the heavy lifting of parsing, citation verification, and grading.
-          </p>
+      {/* 4. How It Works Section */}
+      <section id="how-it-works" style={{ padding: '120px 24px' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              EVALUATION PIPELINE
+            </h2>
+            <h3 style={{ fontSize: '36px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px' }}>
+              3 Steps to Examiner-Grade Evaluation
+            </h3>
+          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '40px', position: 'relative' }}>
             {[
-              { step: '01', title: 'Upload Sheet', desc: 'Scan or snapshot your handwritten exam answer sheet and drag it directly into the dashboard.' },
-              { step: '02', title: 'AI OCR & Analysis', desc: 'Xaminix extracts the handwriting, checks provisions, maps coverage guidelines, and outputs calibrated marks.' },
-              { step: '03', title: 'Improve Structure', desc: 'Review your personalized feedback check, missing sections summary, and study the examiner-grade model script.' }
-            ].map((item, idx) => (
-              <div key={idx} style={{ textAlign: 'left', position: 'relative' }}>
+              { num: '01', title: 'Upload Practice Sheet', desc: 'Take a picture or upload a PDF of your handwritten answers. Our dashboard handles high-res uploads instantly.' },
+              { num: '02', title: 'AI OCR Scanning & Audit', desc: 'The engine extracts text, checks statutory section numbers, cross-references corporate guidelines, and scores metrics.' },
+              { num: '03', title: 'Actionable Improvement', desc: 'Receive your score breakdown, see missing sections highlights, and read the calibrated model script answers.' }
+            ].map((step, idx) => (
+              <div key={idx} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <span style={{ 
-                  fontSize: '48px', 
+                  fontSize: '56px', 
                   fontWeight: 900, 
                   color: '#e2e8f0', 
                   display: 'block', 
                   lineHeight: '1', 
-                  marginBottom: '12px',
+                  marginBottom: '16px',
                   fontFamily: 'monospace'
-                }}>{item.step}</span>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: '0 0 8px 0' }}>{item.title}</h3>
-                <p style={{ fontSize: '14.5px', color: '#64748b', lineHeight: '1.5', margin: 0 }}>{item.desc}</p>
+                }}>{step.num}</span>
+                <h4 style={{ fontSize: '19px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>{step.title}</h4>
+                <p style={{ fontSize: '14.5px', color: '#64748b', lineHeight: '1.6', margin: 0 }}>{step.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 5. Outcomes & Features */}
-      <section id="features" style={{ padding: '100px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', marginBottom: '16px' }}>
-              Engineered for actual score improvements
+      {/* 5. Bento Feature Grid Section */}
+      <section id="features" style={{ padding: '120px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              PRODUCT FEATURES
             </h2>
-            <p style={{ fontSize: '16px', color: '#475569', maxWidth: '600px', margin: '0 auto' }}>
-              Features mapped to specific learning gaps, helping you eliminate penalities and address examiner expectations.
-            </p>
+            <h3 style={{ fontSize: '36px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px' }}>
+              Engineered to Elevate Descriptive Scores
+            </h3>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            {[
-              { icon: FileText, title: 'Handwriting Recognition (OCR)', desc: 'Optimized specifically for handwritten, exam-conditioned scripts to translate answers instantly without manual transcription.' },
-              { icon: Award, title: 'Examiner Calibration Layer', desc: 'Checks answers against rubric criteria using point-based values (Mandatory, Important, Supporting) to remove grading subjectivity.' },
-              { icon: ShieldCheck, title: 'Legal Provision Check', desc: 'Instantly identifies correct, partial, missing, or hallucinated Companies Act Sections, Rules, and Forms.' },
-              { icon: Sparkles, title: 'Exam-Realistic Model Guidance', desc: 'Access realistic answers structured exactly as an AIR-level CS Executive candidate would write under actual time constraints.' },
-              { icon: Zap, title: 'Structure-Preserved Rewrites', desc: 'Review an improved version of your own script that fixes terminology omissions while retaining your personal formatting.' },
-              { icon: TrendingUp, title: 'Long-term Progress Metrics', desc: 'Track your marks trend, conceptual strengths, and accuracy indicators over time to measure exam-readiness.' }
-            ].map((feat, idx) => {
-              const Icon = feat.icon;
-              return (
-                <div key={idx} style={{
-                  padding: '32px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start'
-                }}>
-                  <div style={{
-                    padding: '10px',
-                    backgroundColor: '#eff6ff',
-                    color: '#2563eb',
-                    borderRadius: '10px',
-                    marginBottom: '20px'
-                  }}>
-                    <Icon size={20} />
-                  </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>{feat.title}</h3>
-                  <p style={{ fontSize: '13.5px', color: '#64748b', lineHeight: '1.5', margin: 0 }}>{feat.desc}</p>
+          <div className="bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+            
+            {/* Bento Card 1: Large (2 Cols Wide) */}
+            <div className="bento-card" style={{ gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ padding: '10px', backgroundColor: '#eff6ff', color: '#2563eb', borderRadius: '12px' }}>
+                  <FileText size={22} />
                 </div>
-              );
-            })}
+                <h4 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Handwriting OCR Engine</h4>
+              </div>
+              <p style={{ fontSize: '15px', color: '#64748b', lineHeight: '1.6', marginBottom: 20 }}>
+                Custom trained neural network optimized for typical exam handwriting. Converts fast and messy scribbles into structured digital text with 96.8% accuracy. Keeps visual markers intact.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#2563eb', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '6px' }}>Cursive Support</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#2563eb', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '6px' }}>Low Light Uploads</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#2563eb', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '6px' }}>Multi-Page Stitching</span>
+              </div>
+            </div>
+
+            {/* Bento Card 2: Small */}
+            <div className="bento-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ padding: '10px', backgroundColor: '#f0fdf4', color: '#10b981', borderRadius: '12px' }}>
+                  <ShieldCheck size={22} />
+                </div>
+                <h4 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Statute Verification</h4>
+              </div>
+              <p style={{ fontSize: '15px', color: '#64748b', lineHeight: '1.6' }}>
+                Scans citations in real-time. Highlights valid Section numbers, missing Rules, and alerts if you write wrong provisions.
+              </p>
+            </div>
+
+            {/* Bento Card 3: Small */}
+            <div className="bento-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ padding: '10px', backgroundColor: '#f5f3ff', color: '#7c3aed', borderRadius: '12px' }}>
+                  <Award size={22} />
+                </div>
+                <h4 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Examiner Rubrics</h4>
+              </div>
+              <p style={{ fontSize: '15px', color: '#64748b', lineHeight: '1.6' }}>
+                We calibrate our AI to follow the exact point structures of CA & CS Board guidelines. No generic suggestions.
+              </p>
+            </div>
+
+            {/* Bento Card 4: Large (2 Cols Wide) */}
+            <div className="bento-card" style={{ gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ padding: '10px', backgroundColor: '#fffbeb', color: '#d97706', borderRadius: '12px' }}>
+                  <Sparkles size={22} />
+                </div>
+                <h4 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>calibrated Model Answers</h4>
+              </div>
+              <p style={{ fontSize: '15px', color: '#64748b', lineHeight: '1.6', marginBottom: 20 }}>
+                Study top-performing model drafts tailored for every question. Understand how professional examiners expect answer formats, legal references, analysis flow, and definitive conclusions to look.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#d97706', backgroundColor: '#fffbeb', padding: '4px 10px', borderRadius: '6px' }}>Format Highlights</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#d97706', backgroundColor: '#fffbeb', padding: '4px 10px', borderRadius: '6px' }}>Legal Phrasing</span>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* 6. Interactive Product Preview */}
-      <section id="preview" style={{ padding: '100px 24px' }}>
+      {/* 6. Interactive Product Preview Section */}
+      <section id="preview" style={{ padding: '120px 24px' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', marginBottom: '16px' }}>
-              Explore the evaluation report dashboard
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              INTERACTIVE DEMO
             </h2>
+            <h3 style={{ fontSize: '36px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', marginBottom: '16px' }}>
+              Explore the Evaluation Report
+            </h3>
             <p style={{ fontSize: '16px', color: '#475569' }}>
-              Click the tabs below to preview the exact breakdown structure Xaminix provides.
+              Select the tabs below to preview the exact breakdown structure Xaminix provides for your scripts.
             </p>
           </div>
 
@@ -618,23 +844,24 @@ function PublicLandingPage() {
                 { id: 'ocr', label: '1. Handwriting & OCR' },
                 { id: 'score', label: '2. Score Breakdown' },
                 { id: 'feedback', label: '3. Examiner Feedback' },
-                { id: 'provisions', label: '4. Legal Provision Check' }
+                { id: 'provisions', label: '4. Legal Provisions Audit' }
               ].map((tab) => (
                 <button 
                   key={tab.id}
                   onClick={() => setActivePreviewTab(tab.id as any)}
                   style={{
                     flex: 1,
-                    padding: '16px 8px',
+                    padding: '18px 12px',
                     border: 'none',
                     borderBottom: activePreviewTab === tab.id ? '2px solid #2563eb' : 'none',
                     backgroundColor: 'transparent',
-                    fontSize: '13.5px',
+                    fontSize: '14px',
                     fontWeight: 700,
                     color: activePreviewTab === tab.id ? '#2563eb' : '#64748b',
                     cursor: 'pointer',
                     outline: 'none',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
                   }}
                 >
                   {tab.label}
@@ -643,40 +870,41 @@ function PublicLandingPage() {
             </div>
 
             {/* Tab Contents */}
-            <div style={{ padding: '32px', minHeight: '340px' }}>
+            <div style={{ padding: '36px', minHeight: '360px', backgroundColor: '#ffffff' }}>
               {activePreviewTab === 'ocr' && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-                  <div style={{ padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>Handwritten Sheet Snap</span>
-                    <p style={{ fontStyle: 'italic', color: '#1e3a8a', fontFamily: 'serif', lineHeight: '1.8' }}>
-                      &quot;Under Section 96 of Companies Act, 2013, AGM is statutory... First AGM must be within 9 months of financial year end...&quot;
+                  <div style={{ padding: '24px', backgroundColor: '#fafaf9', border: '1px dashed #cbd5e1', borderRadius: '16px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#78716c', textTransform: 'uppercase', display: 'block', marginBottom: '12px', letterSpacing: '0.5px' }}>Handwritten Sheet snapshot</span>
+                    <p style={{ fontStyle: 'italic', color: '#1e3b8a', fontFamily: '"Georgia", serif', lineHeight: '1.9' }}>
+                      &quot;Every company under Section 96 has to hold an AGM within 9 months of financial year end...&quot;
                     </p>
                   </div>
-                  <div style={{ padding: '20px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '16px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>Extracted Digital OCR</span>
+                  <div style={{ padding: '24px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '16px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', display: 'block', marginBottom: '12px', letterSpacing: '0.5px' }}>Extracted Digital Text (OCR)</span>
                     <p style={{ color: '#1e293b', fontSize: '14.5px', lineHeight: '1.6' }}>
-                      Under Section 96 of Companies Act, 2013, AGM is a statutory requirement... The first AGM must be held within 9 months of the close of the financial year.
+                      Every company under Section 96 has to hold an AGM within 9 months of financial year end...
                     </p>
+                    <span style={{ fontSize: '11.5px', color: '#10b981', fontWeight: 600, display: 'block', marginTop: '16px' }}>✓ OCR Confidence: 99.1%</span>
                   </div>
                 </div>
               )}
 
               {activePreviewTab === 'score' && (
                 <div>
-                  <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Marks Breakdown Rubric</h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h4 style={{ margin: '0 0 20px 0', fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>Marks Breakdown Rubric</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {[
-                      { title: 'Legal Provision & Citations', score: '0.80 / 1.0', pct: 80 },
-                      { title: 'Concept Coverage', score: '1.50 / 2.0', pct: 75 },
-                      { title: 'Explanation & Analysis', score: '0.70 / 1.0', pct: 70 },
-                      { title: 'Conclusion Validity', score: '0.50 / 0.5', pct: 100 }
+                      { title: 'Legal Provision & Citations (Section 96 & rules)', score: '0.90 / 1.0', pct: 90 },
+                      { title: 'Concept Coverage (AGM timelines & exemptions)', score: '1.60 / 2.0', pct: 80 },
+                      { title: 'Explanation & Analysis (OPC exclusions context)', score: '0.80 / 1.0', pct: 80 },
+                      { title: 'Conclusion validity & structure', score: '0.45 / 0.5', pct: 90 }
                     ].map((row, i) => (
                       <div key={i}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', fontWeight: 600, marginBottom: '6px' }}>
-                          <span style={{ color: '#334155' }}>{row.title}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>
+                          <span style={{ color: '#475569' }}>{row.title}</span>
                           <span style={{ color: '#0f172a', fontWeight: 700 }}>{row.score}</span>
                         </div>
-                        <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                        <div style={{ height: '8px', backgroundColor: '#f1f5f9', borderRadius: '9999px', overflow: 'hidden' }}>
                           <div style={{ width: `${row.pct}%`, height: '100%', backgroundColor: '#2563eb', borderRadius: '9999px' }} />
                         </div>
                       </div>
@@ -687,18 +915,18 @@ function PublicLandingPage() {
 
               {activePreviewTab === 'feedback' && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-                  <div style={{ padding: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
-                    <h5 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 700, color: '#166534' }}>Key Strengths</h5>
-                    <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '13px', color: '#14532d', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <li>✅ Cited primary Companies Act Section 96 cleanly.</li>
-                      <li>✅ Outlined OPC exemption rules accurately.</li>
+                  <div style={{ padding: '24px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
+                    <h5 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#166534' }}>Key Strengths</h5>
+                    <ul style={{ paddingLeft: '20px', margin: 0, fontSize: '13.5px', color: '#14532d', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <li>Successfully identified Section 96 requirements.</li>
+                      <li>Accurately outlined 15-month max gap between subsequent meetings.</li>
                     </ul>
                   </div>
-                  <div style={{ padding: '20px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
-                    <h5 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 700, color: '#9f1239' }}>Improvement Required</h5>
-                    <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '13px', color: '#9f1239', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <li>⚠️ Detail the ROC extension exception rules (max 3 months).</li>
-                      <li>⚠️ Clarify business hour constraints for notices.</li>
+                  <div style={{ padding: '24px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
+                    <h5 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#9f1239' }}>Improvement Required</h5>
+                    <ul style={{ paddingLeft: '20px', margin: 0, fontSize: '13.5px', color: '#9f1239', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <li>Missed the ROC extension rules (max extension of 3 months).</li>
+                      <li>Incorporate specific case rules like ROC business hour notice constraints.</li>
                     </ul>
                   </div>
                 </div>
@@ -706,23 +934,23 @@ function PublicLandingPage() {
 
               {activePreviewTab === 'provisions' && (
                 <div>
-                  <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Legal Provision Check</h4>
+                  <h4 style={{ margin: '0 0 20px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Legal Provision Audit</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-                    <div style={{ padding: '16px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#166534', display: 'block', marginBottom: '8px' }}>CORRECT</span>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#14532d' }}>Section 96</span>
+                    <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '14px', border: '1px solid #bbf7d0' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#166534', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>CORRECT</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#14532d' }}>Section 96</span>
                     </div>
-                    <div style={{ padding: '16px', backgroundColor: '#fffbeb', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', display: 'block', marginBottom: '8px' }}>PARTIAL</span>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#78350f' }}>Form MGT-15</span>
+                    <div style={{ padding: '20px', backgroundColor: '#fffbeb', borderRadius: '14px', border: '1px solid #fde68a' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>PARTIAL CITATION</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#78350f' }}>Form MGT-15</span>
                     </div>
-                    <div style={{ padding: '16px', backgroundColor: '#fff1f2', borderRadius: '12px', border: '1px solid #fecdd3' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#be123c', display: 'block', marginBottom: '8px' }}>MISSING</span>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#9f1239' }}>Rule 14 (Notice)</span>
+                    <div style={{ padding: '20px', backgroundColor: '#fff1f2', borderRadius: '14px', border: '1px solid #fecdd3' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#be123c', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>MISSING RULE</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#9f1239' }}>Rule 14 (Notices)</span>
                     </div>
-                    <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '12px', border: '1px solid #cbd5e1' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '8px' }}>INCORRECT</span>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>None</span>
+                    <div style={{ padding: '20px', backgroundColor: '#fafafa', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>INCORRECT</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#475569' }}>None Detected</span>
                     </div>
                   </div>
                 </div>
@@ -732,69 +960,253 @@ function PublicLandingPage() {
         </div>
       </section>
 
-      {/* 7. Why Students Choose Xaminix (Comparison) */}
-      <section style={{ padding: '100px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', textAlign: 'center', marginBottom: '48px' }}>
-            Traditional Practice vs. Xaminix
-          </h2>
+      {/* 7. Traditional Practice vs Xaminix Section */}
+      <section id="comparison" style={{ padding: '120px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              PRODUCT COMPARISON
+            </h2>
+            <h3 style={{ fontSize: '36px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px' }}>
+              Traditional Checking vs. Xaminix
+            </h3>
+          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-            <div style={{ padding: '32px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#64748b', marginBottom: '24px' }}>Traditional Practice</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ fontSize: '14.5px', color: '#64748b' }}>❌ **7-14 Days wait** for manual evaluation feedback.</div>
-                <div style={{ fontSize: '14.5px', color: '#64748b' }}>❌ **Subjective marks** with little specific alignment context.</div>
-                <div style={{ fontSize: '14.5px', color: '#64748b' }}>❌ **No legal citation tracking** to verify Sections vs Rules.</div>
-                <div style={{ fontSize: '14.5px', color: '#64748b' }}>❌ **No progress tracking** or scores trend history.</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
+            {/* Traditional Column */}
+            <div style={{ padding: '36px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '24px' }}>
+              <h4 style={{ fontSize: '19px', fontWeight: 700, color: '#64748b', marginBottom: '28px' }}>Traditional Evaluation</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ fontSize: '14.5px', color: '#64748b', display: 'flex', gap: '10px' }}>
+                  <span>❌</span> <span>**7 to 14 Day Wait time** before receiving evaluation.</span>
+                </div>
+                <div style={{ fontSize: '14.5px', color: '#64748b', display: 'flex', gap: '10px' }}>
+                  <span>❌</span> <span>**Subjective marks** with minimal alignment details.</span>
+                </div>
+                <div style={{ fontSize: '14.5px', color: '#64748b', display: 'flex', gap: '10px' }}>
+                  <span>❌</span> <span>**No specific citation verification** checks.</span>
+                </div>
+                <div style={{ fontSize: '14.5px', color: '#64748b', display: 'flex', gap: '10px' }}>
+                  <span>❌</span> <span>**Zero progress tracking** dashboard stats.</span>
+                </div>
               </div>
             </div>
 
-            <div style={{ padding: '32px', backgroundColor: '#ffffff', border: '2px solid #2563eb', borderRadius: '20px', boxShadow: '0 10px 25px -5px rgba(37,99,235,0.05)' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#2563eb', marginBottom: '24px' }}>Xaminix AI</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ fontSize: '14.5px', color: '#334155' }}>✅ **Under 60 seconds** evaluation turnaround.</div>
-                <div style={{ fontSize: '14.5px', color: '#334155' }}>✅ **Calibrated scoring** utilizing point-based metrics.</div>
-                <div style={{ fontSize: '14.5px', color: '#334155' }}>✅ **Interactive Legal Provision Check** details.</div>
-                <div style={{ fontSize: '14.5px', color: '#334155' }}>✅ **SaaS progress dashboards** with score tracking.</div>
+            {/* Xaminix Column */}
+            <div style={{ 
+              padding: '36px', 
+              backgroundColor: '#ffffff', 
+              border: '2px solid #2563eb', 
+              borderRadius: '24px', 
+              boxShadow: '0 20px 40px -10px rgba(37,99,235,0.06)',
+              position: 'relative'
+            }}>
+              <span style={{
+                position: 'absolute',
+                top: '-14px',
+                right: '24px',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '4px 12px',
+                borderRadius: '9999px',
+                textTransform: 'uppercase'
+              }}>RECOMMENDED</span>
+              <h4 style={{ fontSize: '19px', fontWeight: 700, color: '#2563eb', marginBottom: '28px' }}>Xaminix AI</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ fontSize: '14.5px', color: '#334155', display: 'flex', gap: '10px' }}>
+                  <span>✅</span> <span>**Under 60 seconds** total evaluation turnaround.</span>
+                </div>
+                <div style={{ fontSize: '14.5px', color: '#334155', display: 'flex', gap: '10px' }}>
+                  <span>✅</span> <span>**Calibrated scoring** based on point value standards.</span>
+                </div>
+                <div style={{ fontSize: '14.5px', color: '#334155', display: 'flex', gap: '10px' }}>
+                  <span>✅</span> <span>**Interactive Legal Provision Check** with highlights.</span>
+                </div>
+                <div style={{ fontSize: '14.5px', color: '#334155', display: 'flex', gap: '10px' }}>
+                  <span>✅</span> <span>**SaaS progress dashboard** with metrics history.</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 8. Future Roadmap */}
-      <section id="roadmap" style={{ padding: '100px 24px' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', textAlign: 'center', marginBottom: '48px' }}>
-            Roadmap & Certifications Support
-          </h2>
+      {/* 8. Progress Tracking & Analytics Section */}
+      <section id="analytics" style={{ padding: '120px 24px' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '65px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              ANALYTICS & METRICS
+            </h2>
+            <h3 style={{ fontSize: '36px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', marginBottom: '16px' }}>
+              Track Your Strengths & Progress
+            </h3>
+            <p style={{ fontSize: '16px', color: '#475569' }}>
+              Our analytics dashboard processes scores from all tests to draw a performance roadmap.
+            </p>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr', gap: '40px', alignItems: 'center' }} className="hero-grid">
+            {/* Tabs for switching visuals */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[
+                { id: 'trends', label: 'Improvement Trends', desc: 'Watch your scores rise across successive evaluations.' },
+                { id: 'weakness', label: 'Weakness Identification', desc: 'Isolate sections or rules you consistently miss.' },
+                { id: 'topics', label: 'Topic Strengths', desc: 'Identify which corporate statutes you master best.' }
+              ].map((btn) => (
+                <button
+                  key={btn.id}
+                  onClick={() => setActiveProgressTab(btn.id as any)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '20px',
+                    border: '1px solid ' + (activeProgressTab === btn.id ? '#bfdbfe' : '#e2e8f0'),
+                    borderRadius: '16px',
+                    backgroundColor: activeProgressTab === btn.id ? '#f0f9ff' : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <h5 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0' }}>{btn.label}</h5>
+                  <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>{btn.desc}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Display Graphic Cards based on active tab */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '24px',
+              padding: '32px',
+              boxShadow: '0 15px 30px rgba(15, 23, 42, 0.03)',
+              minHeight: '300px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center'
+            }}>
+              {activeProgressTab === 'trends' && (
+                <div>
+                  <h4 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 20px 0' }}>Average Score Growth Trend</h4>
+                  {/* Visual SVG Line Graph representation */}
+                  <svg viewBox="0 0 400 160" style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
+                    <path d="M 10,140 Q 90,130 130,90 T 250,60 T 380,20" fill="none" stroke="#2563eb" strokeWidth="4" />
+                    <circle cx="10" cy="140" r="5" fill="#2563eb" />
+                    <circle cx="130" cy="90" r="5" fill="#2563eb" />
+                    <circle cx="250" cy="60" r="5" fill="#2563eb" />
+                    <circle cx="380" cy="20" r="6" fill="#10b981" />
+                    <text x="10" y="160" fontSize="10" fill="#64748b" textAnchor="middle">Test 1</text>
+                    <text x="130" y="110" fontSize="10" fill="#64748b" textAnchor="middle">Test 2</text>
+                    <text x="250" y="80" fontSize="10" fill="#64748b" textAnchor="middle">Test 3</text>
+                    <text x="380" y="40" fontSize="10" fill="#10b981" fontWeight="700" textAnchor="middle">Test 4 (85%)</text>
+                  </svg>
+                </div>
+              )}
+
+              {activeProgressTab === 'weakness' && (
+                <div>
+                  <h4 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 16px 0' }}>Omission Identification Analysis</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                        <span>ROC Filings (Section 92 / 137)</span>
+                        <span style={{ color: '#ef4444', fontWeight: 600 }}>60% Missed</span>
+                      </div>
+                      <div style={{ height: '6px', backgroundColor: '#f1f5f9', borderRadius: '4px' }}>
+                        <div style={{ width: '60%', height: '100%', backgroundColor: '#ef4444', borderRadius: '4px' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                        <span>Secretarial Standards (SS-1 / SS-2)</span>
+                        <span style={{ color: '#f59e0b', fontWeight: 600 }}>35% Missed</span>
+                      </div>
+                      <div style={{ height: '6px', backgroundColor: '#f1f5f9', borderRadius: '4px' }}>
+                        <div style={{ width: '35%', height: '100%', backgroundColor: '#f59e0b', borderRadius: '4px' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeProgressTab === 'topics' && (
+                <div>
+                  <h4 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 16px 0' }}>Syllabus Strengths Map</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {[
+                      { topic: 'General Meetings (Section 96-122)', strength: '92% Strength', color: '#10b981', w: '92%' },
+                      { topic: 'Directors & Board Rules', strength: '78% Strength', color: '#3b82f6', w: '78%' },
+                      { topic: 'Incorporation & Objects', strength: '65% Strength', color: '#6366f1', w: '65%' }
+                    ].map((row, i) => (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                          <span>{row.topic}</span>
+                          <span style={{ color: row.color, fontWeight: 600 }}>{row.strength}</span>
+                        </div>
+                        <div style={{ height: '6px', backgroundColor: '#f1f5f9', borderRadius: '4px' }}>
+                          <div style={{ width: row.w, height: '100%', backgroundColor: row.color, borderRadius: '4px' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 9. Future Roadmap Section */}
+      <section id="roadmap" style={{ padding: '120px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              ROADMAP
+            </h2>
+            <h3 style={{ fontSize: '36px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px' }}>
+              Future Certification Tracks
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', position: 'relative' }}>
+            {/* Connection Line */}
+            <div style={{
+              position: 'absolute',
+              top: '20px',
+              left: '19px',
+              bottom: '20px',
+              width: '2px',
+              background: 'linear-gradient(#2563eb, #e2e8f0)'
+            }} />
+
             {[
-              { phase: 'CS Executive (Active)', desc: 'Fully live and calibrated for Company Law & secretarial practice evaluations.' },
-              { phase: 'CA & CMA Modules (Q4 2026)', desc: 'Configuring RAG databases and scoring criteria for financial law papers.' },
-              { phase: 'UPSC Law Optional (Q1 2027)', desc: 'Custom legal interpretation scoring modules for UPSC law optional.' }
+              { phase: 'CS Executive Theory (Active)', desc: 'Fully active for Company Law papers. Scoring models configured against current executive guidelines.' },
+              { phase: 'CA & CMA Modules (Q4 2026)', desc: 'Extending to corporate audit standards, direct/indirect tax sections scoring calibration.' },
+              { phase: 'UPSC Law Optional & Law Exams (Q1 2027)', desc: 'Configuring constitutional law guidelines and descriptive judicial interpretation scoring.' }
             ].map((step, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+              <div key={idx} style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', position: 'relative', zIndex: 10 }}>
                 <div style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '40px',
+                  height: '40px',
                   borderRadius: '50%',
-                  backgroundColor: idx === 0 ? '#2563eb' : '#e2e8f0',
+                  backgroundColor: idx === 0 ? '#2563eb' : '#ffffff',
+                  border: idx === 0 ? 'none' : '2px solid #cbd5e1',
                   color: idx === 0 ? '#ffffff' : '#64748b',
-                  fontSize: '12px',
+                  fontSize: '14px',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.02)'
                 }}>
                   {idx + 1}
                 </div>
-                <div>
-                  <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>{step.phase}</h4>
-                  <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>{step.desc}</p>
+                <div style={{ paddingTop: '8px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0' }}>{step.phase}</h4>
+                  <p style={{ fontSize: '14.5px', color: '#64748b', margin: 0, lineHeight: '1.5' }}>{step.desc}</p>
                 </div>
               </div>
             ))}
@@ -802,34 +1214,41 @@ function PublicLandingPage() {
         </div>
       </section>
 
-      {/* 9. FAQ Section */}
-      <section id="faq" style={{ padding: '100px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+      {/* 10. FAQ Accordion Section */}
+      <section id="faq" style={{ padding: '120px 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', textAlign: 'center', marginBottom: '48px' }}>
-            Frequently Asked Questions
-          </h2>
+          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+              SUPPORT & FAQ
+            </h2>
+            <h3 style={{ fontSize: '36px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px' }}>
+              Frequently Asked Questions
+            </h3>
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {[
-              { q: 'How accurate is the AI evaluation?', a: 'Highly accurate. The evaluation engine maps student answers directly to calibrated checklists (Mandatory, Important, Supporting points) to ensure grading criteria align with corporate secretarial standards.' },
-              { q: 'Does it support handwritten answer sheets?', a: 'Yes! Our custom OCR model is specifically optimized for exam-room handwriting, converting handwritten sheets into digital text before performing checks.' },
-              { q: 'Is it relevant for CA and CMA exams?', a: 'Currently we are fully active for CS Executive and Company Law theory. CA, CMA, and UPSC law optional modules are in progress and will launch according to the roadmap.' }
+              { q: 'How does Xaminix calibrate its scores?', a: 'The engine uses structured grading rubrics calibrated directly to professional board examination standards. It awards partial marks based on legal provisions, concept coverage, analysis quality, and conclusion validity.' },
+              { q: 'Does the scanner support messy cursive handwriting?', a: 'Yes. Our specialized OCR engine is trained on thousands of sample student test scripts, allowing it to parse fast cursive and low-light photo uploads with high accuracy.' },
+              { q: 'Which exams are currently supported?', a: 'We are currently fully live for CS Executive and general Company Law. Modules for Chartered Accountancy (CA) and Cost Management (CMA) are launching in Q4 2026.' },
+              { q: 'Is my uploaded answer sheet kept secure?', a: 'Absolutely. All uploads are fully encrypted and treated as strictly private. Your sheets are only used for your evaluation session report.' }
             ].map((faq, i) => (
               <div key={i} style={{ 
                 backgroundColor: '#ffffff', 
                 border: '1px solid #e2e8f0', 
                 borderRadius: '16px',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                transition: 'all 0.2s'
               }}>
                 <button 
                   onClick={() => toggleFaq(i)}
                   style={{
                     width: '100%',
-                    padding: '20px 24px',
+                    padding: '22px 28px',
                     border: 'none',
                     backgroundColor: 'transparent',
                     textAlign: 'left',
-                    fontSize: '15px',
+                    fontSize: '15.5px',
                     fontWeight: 700,
                     color: '#0f172a',
                     cursor: 'pointer',
@@ -843,7 +1262,7 @@ function PublicLandingPage() {
                   {openFaq === i ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                 </button>
                 {openFaq === i && (
-                  <div style={{ padding: '0 24px 20px 24px', fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
+                  <div style={{ padding: '0 28px 24px 28px', fontSize: '14.5px', color: '#475569', lineHeight: '1.6', borderTop: '1px solid #f8fafc' }}>
                     {faq.a}
                   </div>
                 )}
@@ -853,89 +1272,127 @@ function PublicLandingPage() {
         </div>
       </section>
 
-      {/* 10. Final CTA */}
-      <section style={{ padding: '100px 24px', textAlign: 'center' }}>
+      {/* 11. Final CTA Section */}
+      <section style={{ padding: '100px 24px 120px 24px' }}>
         <div style={{ 
-          maxWidth: '800px', 
+          maxWidth: '1000px', 
           margin: '0 auto', 
           backgroundColor: '#0f172a', 
-          borderRadius: '24px', 
-          padding: '60px 40px',
-          color: '#ffffff'
+          borderRadius: '32px', 
+          padding: '80px 48px',
+          color: '#ffffff',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 30px 60px -15px rgba(15, 23, 42, 0.25)'
         }}>
-          <h2 style={{ fontSize: '36px', fontWeight: 800, marginBottom: '16px', letterSpacing: '-1px' }}>
-            Upload your first answer sheet today
+          {/* Subtle glow effect background inside CTA card */}
+          <div style={{
+            position: 'absolute',
+            top: '-50%',
+            left: '-50%',
+            right: '-50%',
+            bottom: '-50%',
+            background: 'radial-gradient(circle, rgba(99, 91, 255, 0.1) 0%, transparent 60%)',
+            pointerEvents: 'none'
+          }} />
+
+          <h2 style={{ fontSize: '42px', fontWeight: 800, marginBottom: '20px', letterSpacing: '-1px' }}>
+            Ready to Master Your Exams?
           </h2>
-          <p style={{ fontSize: '16px', color: '#94a3b8', marginBottom: '32px', maxWidth: '500px', margin: '0 auto 32px auto' }}>
-            Join thousands of professional exam candidates improving descriptive scores with Xaminix.
+          <p style={{ fontSize: '17px', color: '#94a3b8', marginBottom: '40px', maxWidth: '520px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>
+            Upload your descriptive answers today and learn exactly what it takes to score full marks.
           </p>
           <Link href="/login" style={{ textDecoration: 'none' }}>
-            <button style={{
+            <button className="btn-premium-primary" style={{
               backgroundColor: '#2563eb',
               color: '#ffffff',
               border: 'none',
-              padding: '16px 32px',
+              padding: '18px 36px',
               borderRadius: '12px',
-              fontSize: '15.5px',
+              fontSize: '16px',
               fontWeight: 600,
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px'
-            }} className="hover:bg-blue-700 transition-colors">
-              Get Started for Free <ArrowRight size={16} />
+            }}>
+              Evaluate My First Answer <ArrowRight size={16} />
             </button>
           </Link>
         </div>
       </section>
 
-      {/* 11. Footer */}
-      <footer style={{ backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '60px 24px 40px 24px' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '32px', marginBottom: '40px' }}>
+      {/* 12. Footer Section */}
+      <footer style={{ backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '80px 24px 40px 24px' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '48px', marginBottom: '60px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <div style={{ 
-                width: '28px', 
-                height: '28px', 
-                borderRadius: '6px', 
-                background: 'linear-gradient(135deg, #1e3a8a, #7c3aed)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontWeight: 800,
-                fontSize: '13px'
-              }}>
-                X
-              </div>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>Xaminix</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+              <img 
+                src="/logo.png" 
+                alt="Xaminix Logo" 
+                style={{ width: '28px', height: '28px', objectFit: 'contain' }} 
+              />
+              <span style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>Xaminix</span>
             </div>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>AI Answer Evaluation for Professional Exams</span>
+            <span style={{ fontSize: '13.5px', color: '#64748b', display: 'block', maxWidth: '300px', lineHeight: '1.6' }}>
+              AI-powered answer evaluation calibration platform for professional descriptive examinations.
+            </span>
           </div>
 
-          <div style={{ display: 'flex', gap: '60px' }}>
+          <div style={{ display: 'flex', gap: '80px', flexWrap: 'wrap' }}>
             <div>
-              <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', marginBottom: '16px' }}>Legal</h5>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <a href="#privacy" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600">Privacy Policy</a>
-                <a href="#terms" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600">Terms of Service</a>
+              <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>Product</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <a href="#how-it-works" style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600 transition-colors">How It Works</a>
+                <a href="#features" style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600 transition-colors">Features</a>
+                <a href="#preview" style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600 transition-colors">Interactive Demo</a>
               </div>
             </div>
+
             <div>
-              <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', marginBottom: '16px' }}>Community</h5>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <a href="#github" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600">GitHub</a>
-                <a href="#linkedin" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600">LinkedIn</a>
-                <a href="#reddit" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600">Reddit</a>
+              <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>Socials</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <a 
+                  href="https://instagram.com/xaminix.ai" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Instagram
+                </a>
+                <a 
+                  href="https://reddit.com/u/xaminix_ai" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Reddit
+                </a>
+                <a 
+                  href="https://x.com/XaminixAI" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Twitter (X)
+                </a>
               </div>
             </div>
           </div>
         </div>
 
-        <div style={{ maxWidth: '1200px', margin: '0 auto', borderTop: '1px solid #e2e8f0', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <span style={{ fontSize: '13px', color: '#64748b' }}>&copy; {new Date().getFullYear()} Xaminix. All rights reserved.</span>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', borderTop: '1px solid #e2e8f0', paddingTop: '30px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <span style={{ fontSize: '13.5px', color: '#64748b' }}>&copy; {new Date().getFullYear()} Xaminix. All rights reserved.</span>
         </div>
       </footer>
+
+    </div>
+  );
+}    </footer>
 
     </div>
   );
