@@ -18,7 +18,6 @@ export default function LoginPage() {
       router.replace('/');
     }
   }, [user, isLoading, router]);
-
   // Looping background workspace story
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -27,7 +26,10 @@ export default function LoginPage() {
         setProgressVal((p) => {
           if (p >= 100) {
             clearInterval(interval);
-            timer = setTimeout(() => setAnimationStep(1), 1000);
+            timer = setTimeout(() => {
+              setTypedText('');
+              setAnimationStep(1);
+            }, 1000);
             return 100;
           }
           return p + 5;
@@ -38,7 +40,6 @@ export default function LoginPage() {
         clearTimeout(timer);
       };
     } else if (animationStep === 1) {
-      setTypedText('');
       const fullText = "Section 96 of Companies Act, 2013: Every company must hold an AGM each year. First AGM within 9 months of financial year close. Subsequent AGMs within 6 months. Max gap is 15 months...";
       let currIndex = 0;
       const interval = setInterval(() => {
