@@ -2,14 +2,15 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse, NextRequest } from 'next/server';
 import { verifySession } from './lib/session';
 
-// Define paths that require Clerk user authentication (excluding founder routes and login/api routes)
+// Define paths that require Clerk user authentication
+// NOTE: '/' is intentionally NOT listed here — the homepage renders a public
+// landing page for unauthenticated visitors (including search engine bots)
+// and a student dashboard for signed-in users, all handled client-side.
 const isUserRoute = createRouteMatcher([
-  '/',
   '/evaluations(.*)',
   '/analytics(.*)',
   '/profile(.*)',
   '/settings(.*)',
-  '/subscription(.*)',
 ]);
 
 // Founder route handler — independent of Clerk
@@ -87,7 +88,7 @@ export default clerkMiddleware(async (auth, request) => {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:css|js|gif|svg|png|jpg|jpeg|webp|ico)).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:css|js|gif|svg|png|jpg|jpeg|webp|ico)).*)',
     '/(api|trpc)(.*)',
   ],
 };

@@ -12,7 +12,7 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
   const router = useRouter();
 
   useEffect(() => {
-    if (pathname.startsWith('/founder') || pathname.startsWith('/admin') || pathname === '/login') {
+    if (pathname.startsWith('/founder') || pathname.startsWith('/admin') || pathname === '/login' || pathname === '/') {
       return;
     }
     if (!isLoading && !user) {
@@ -30,8 +30,8 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // If on login page or any admin route, just render the page without standard user layout
-  if (pathname === '/login' || pathname.startsWith('/founder') || pathname.startsWith('/admin')) {
+  // If on public pages (homepage when logged out, login, founder/admin routes), render directly
+  if (pathname === '/login' || pathname.startsWith('/founder') || pathname.startsWith('/admin') || (!user && pathname === '/')) {
     return <>{children}</>;
   }
 
