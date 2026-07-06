@@ -423,9 +423,7 @@ export default function LoginPage() {
           appearance={{
             variables: {
               colorPrimary: '#2563eb', 
-              colorBackground: '#0a0f1e', 
-              colorText: '#f8fafc',
-              colorTextSecondary: '#94a3b8',
+              colorBackground: '#ffffff', 
               borderRadius: '12px',
               fontFamily: 'Inter, system-ui, sans-serif',
             },
@@ -435,11 +433,12 @@ export default function LoginPage() {
                 width: '100%',
               },
               card: {
-                border: 'none',
-                boxShadow: 'none',
-                padding: '0',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.04), 0 10px 10px -5px rgba(0, 0, 0, 0.02)',
+                borderRadius: '24px',
+                padding: '36px',
                 width: '100%',
-                background: 'transparent',
+                background: '#ffffff',
               },
               headerTitle: {
                 display: 'none',
@@ -448,45 +447,26 @@ export default function LoginPage() {
                 display: 'none',
               },
               socialButtonsBlockButton: {
-                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: '#e2e8f0',
                 borderRadius: '10px',
-                padding: '12px 20px',
-                background: 'rgba(255, 255, 255, 0.02)',
-                color: '#ffffff',
+                padding: '11px 20px',
                 '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  borderColor: 'rgba(255, 255, 255, 0.15)',
+                  background: '#f8fafc',
                 }
               },
               formButtonPrimary: {
-                background: '#ffffff',
-                color: '#0f172a',
+                background: '#0f172a',
                 borderRadius: '10px',
-                padding: '12px',
-                fontWeight: '700',
+                padding: '11px',
                 '&:hover': {
-                  background: '#f1f5f9',
+                  background: '#1e293b',
                 }
               },
               footerActionLink: {
-                color: '#60a5fa',
+                color: '#2563eb',
                 '&:hover': {
-                  color: '#93c5fd',
+                  color: '#1d4ed8',
                 }
-              },
-              formFieldInput: {
-                background: 'rgba(255, 255, 255, 0.02)',
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                color: '#ffffff',
-                '&:focus': {
-                  borderColor: '#2563eb',
-                }
-              },
-              formFieldLabel: {
-                color: '#94a3b8',
-              },
-              footerActionText: {
-                color: '#64748b',
               }
             }
           }}
