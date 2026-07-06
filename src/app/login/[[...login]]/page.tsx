@@ -23,7 +23,6 @@ export default function LoginPage() {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (animationStep === 0) {
-      setProgressVal(0);
       const interval = setInterval(() => {
         setProgressVal((p) => {
           if (p >= 100) {
@@ -62,6 +61,7 @@ export default function LoginPage() {
       return () => clearTimeout(timer);
     } else if (animationStep === 3) {
       timer = setTimeout(() => {
+        setProgressVal(0);
         setAnimationStep(0);
       }, 6000);
       return () => clearTimeout(timer);
