@@ -1323,8 +1323,181 @@ function PublicLandingPage() {
         </div>
       </section>
 
+      {/* 11.5 Join the Xaminix Community Section */}
+      <section style={{ 
+        padding: '80px 24px', 
+        background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+        borderTop: '1px solid #f1f5f9',
+        textAlign: 'center'
+      }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '12px' }}>
+            GET CONNECTED
+          </h2>
+          <h3 style={{ fontSize: '32px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.8px', marginBottom: '16px' }}>
+            Join the Xaminix Community
+          </h3>
+          <p style={{ fontSize: '16px', color: '#475569', maxWidth: '600px', margin: '0 auto 40px auto', lineHeight: '1.6' }}>
+            Connect with other professional exam candidates, read updates, participate in discussions, and get direct support from our team.
+          </p>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+            gap: '24px',
+            marginTop: '20px'
+          }}>
+            {/* Instagram Card */}
+            <a 
+              href="https://instagram.com/xaminix.ai" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              aria-label="Follow Xaminix on Instagram"
+              style={{
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '24px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                transition: 'all 0.3s ease-in-out',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
+              }}
+              className="bento-card"
+            >
+              <div style={{ 
+                width: '48px', 
+                height: '48px', 
+                borderRadius: '12px', 
+                background: 'linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                marginBottom: '16px'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+              </div>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Instagram</span>
+              <span style={{ fontSize: '14px', color: '#64748b' }}>@xaminix.ai</span>
+            </a>
+
+            {/* Reddit Card */}
+            <a 
+              href="https://reddit.com/u/xaminix_ai" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              aria-label="Follow Xaminix on Reddit"
+              style={{
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '24px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                transition: 'all 0.3s ease-in-out',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
+              }}
+              className="bento-card"
+            >
+              <div style={{ 
+                width: '48px', 
+                height: '48px', 
+                borderRadius: '12px', 
+                background: '#ff4500',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                marginBottom: '16px'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M17.5 10.5c0-.83-.67-1.5-1.5-1.5-.27 0-.52.07-.74.2-.74-.53-1.74-.87-2.85-.92l.6-1.9 1.63.35c.03.46.42.82.9.82.5 0 .9-.4.9-.9s-.4-.9-.9-.9c-.4 0-.74.26-.86.62l-1.84-.4c-.1-.02-.2.03-.25.12l-.68 2.16c-1.16.03-2.2.37-2.96.92-.22-.13-.48-.2-.75-.2-.83 0-1.5.67-1.5 1.5 0 .54.28 1.01.7 1.28-.04.18-.06.36-.06.55 0 2.2 2.68 4 6 4s6-1.8 6-4c0-.18-.02-.37-.06-.55.43-.27.7-.74.7-1.28zM9 11.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1zm6 3.5c-1.07 0-2.02-.58-2.5-1.5-.07-.13-.02-.3.12-.37.13-.07.3-.02.37.12.38.74 1.16 1.2 2.01 1.2.85 0 1.63-.46 2.01-1.2.07-.14.24-.19.37-.12.14.07.19.24.12.37-.48.92-1.43 1.5-2.5 1.5zm1-3.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1z"/></svg>
+              </div>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Reddit</span>
+              <span style={{ fontSize: '14px', color: '#64748b' }}>u/xaminix_ai</span>
+            </a>
+
+            {/* Twitter Card */}
+            <a 
+              href="https://x.com/XaminixAI" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              aria-label="Follow Xaminix on Twitter X"
+              style={{
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '24px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                transition: 'all 0.3s ease-in-out',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
+              }}
+              className="bento-card"
+            >
+              <div style={{ 
+                width: '48px', 
+                height: '48px', 
+                borderRadius: '12px', 
+                background: '#0f172a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                marginBottom: '16px'
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </div>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Twitter (X)</span>
+              <span style={{ fontSize: '14px', color: '#64748b' }}>@XaminixAI</span>
+            </a>
+
+            {/* Contact Email Card */}
+            <a 
+              href="mailto:support@xaminix.com" 
+              aria-label="Email Xaminix Support"
+              style={{
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '24px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                transition: 'all 0.3s ease-in-out',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
+              }}
+              className="bento-card"
+            >
+              <div style={{ 
+                width: '48px', 
+                height: '48px', 
+                borderRadius: '12px', 
+                background: '#eff6ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#2563eb',
+                marginBottom: '16px'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              </div>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Support Email</span>
+              <span style={{ fontSize: '14px', color: '#2563eb', fontWeight: 600 }}>support@xaminix.com</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* 12. Footer Section */}
-      <footer style={{ backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '80px 24px 40px 24px' }}>
+      <footer style={{ backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '80px 24px 40px 24px' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '48px', marginBottom: '60px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
@@ -1335,7 +1508,7 @@ function PublicLandingPage() {
               />
               <span style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>Xaminix</span>
             </div>
-            <span style={{ fontSize: '13.5px', color: '#64748b', display: 'block', maxWidth: '300px', lineHeight: '1.6' }}>
+            <span style={{ fontSize: '13.5px', color: '#64748b', display: 'block', maxWidth: '320px', lineHeight: '1.6' }}>
               AI-powered answer evaluation calibration platform for professional descriptive examinations.
             </span>
           </div>
@@ -1351,34 +1524,53 @@ function PublicLandingPage() {
             </div>
 
             <div>
-              <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>Socials</h5>
+              <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>Legal</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <a href="#privacy" style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600 transition-colors">Privacy Policy</a>
+                <a href="#terms" style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600 transition-colors">Terms of Service</a>
+              </div>
+            </div>
+
+            <div>
+              <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>Community</h5>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <a 
                   href="https://instagram.com/xaminix.ai" 
                   target="_blank" 
                   rel="noopener noreferrer" 
+                  aria-label="Instagram Link"
                   style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
                   className="hover:text-blue-600 transition-colors"
                 >
-                  Instagram
+                  @xaminix.ai (Instagram)
                 </a>
                 <a 
                   href="https://reddit.com/u/xaminix_ai" 
                   target="_blank" 
                   rel="noopener noreferrer" 
+                  aria-label="Reddit Link"
                   style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
                   className="hover:text-blue-600 transition-colors"
                 >
-                  Reddit
+                  u/xaminix_ai (Reddit)
                 </a>
                 <a 
                   href="https://x.com/XaminixAI" 
                   target="_blank" 
                   rel="noopener noreferrer" 
+                  aria-label="Twitter X Link"
                   style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
                   className="hover:text-blue-600 transition-colors"
                 >
-                  Twitter (X)
+                  @XaminixAI (Twitter)
+                </a>
+                <a 
+                  href="mailto:support@xaminix.com" 
+                  aria-label="Support Email Link"
+                  style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  support@xaminix.com
                 </a>
               </div>
             </div>
