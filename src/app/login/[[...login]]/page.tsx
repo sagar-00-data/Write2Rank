@@ -23,7 +23,7 @@ export default function LoginPage() {
         .minimal-login-container {
           min-height: 100vh;
           width: 100vw;
-          background-color: #030712;
+          background-color: #ffffff;
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
           display: flex;
           align-items: center;
@@ -31,30 +31,6 @@ export default function LoginPage() {
           position: relative;
           overflow: hidden;
           padding: 20px;
-        }
-
-        /* Subtle premium background glow */
-        .glow-background {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: radial-gradient(circle at 50% 50%, #0d1527 0%, #030712 100%);
-          z-index: 1;
-        }
-
-        .minimal-grid-texture {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          backgroundImage: linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
-          backgroundSize: 50px 50px;
-          maskImage: radial-gradient(ellipse at center, black, transparent 75%);
-          pointer-events: none;
-          z-index: 2;
         }
 
         /* Centralized Card Container */
@@ -99,7 +75,7 @@ export default function LoginPage() {
           font-size: 20px;
           font-weight: 800;
           letter-spacing: -0.5px;
-          color: #ffffff;
+          color: #0f172a;
         }
 
         /* Headline Styling */
@@ -115,12 +91,12 @@ export default function LoginPage() {
           font-weight: 800;
           line-height: 1.2;
           letter-spacing: -0.8px;
-          color: #f8fafc;
+          color: #0f172a;
         }
 
         .secondary-title {
           font-size: 15px;
-          color: #94a3b8;
+          color: #475569;
           font-weight: 500;
           line-height: 1.5;
         }
@@ -136,7 +112,7 @@ export default function LoginPage() {
           flex-direction: column;
           gap: 10px;
           width: 100%;
-          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          border-top: 1px solid #e2e8f0;
           padding-top: 20px;
           align-items: center;
         }
@@ -146,18 +122,14 @@ export default function LoginPage() {
           align-items: center;
           gap: 8px;
           font-size: 12.5px;
-          color: #64748b;
+          color: #475569;
           font-weight: 500;
         }
 
         .trust-icon-colored {
-          color: #475569;
+          color: #64748b;
         }
       `}</style>
-
-      {/* Decorative Backdrops */}
-      <div className="glow-background"></div>
-      <div className="minimal-grid-texture"></div>
 
       {/* Centered Login Card wrapper */}
       <div className="login-card-wrapper">
@@ -186,7 +158,7 @@ export default function LoginPage() {
               },
               elements: {
                 cardBox: {
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
                   width: '100%',
                 },
                 card: {
