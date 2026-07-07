@@ -9,27 +9,37 @@ interface FeedbackModalProps {
 }
 
 export default function FeedbackModal({ isOpen, onClose, onGiveFeedback }: FeedbackModalProps) {
-  const [shouldRender, setShouldRender] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [animationClass, setAnimationClass] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      setShouldRender(true);
-      // Small timeout to trigger transition
-      const t = setTimeout(() => {
+      // Defer state update to avoid synchronous cascading renders inside useEffect
+      const tInit = setTimeout(() => {
+        setMounted(true);
+      }, 0);
+      const tAnim = setTimeout(() => {
         setAnimationClass('modal-open');
       }, 10);
-      return () => clearTimeout(t);
+      return () => {
+        clearTimeout(tInit);
+        clearTimeout(tAnim);
+      };
     } else {
-      setAnimationClass('');
-      const t = setTimeout(() => {
-        setShouldRender(false);
-      }, 300); // Wait for transition to complete
-      return () => clearTimeout(t);
+      const tAnim = setTimeout(() => {
+        setAnimationClass('');
+      }, 0);
+      const tMounted = setTimeout(() => {
+        setMounted(false);
+      }, 300);
+      return () => {
+        clearTimeout(tAnim);
+        clearTimeout(tMounted);
+      };
     }
   }, [isOpen]);
 
-  if (!shouldRender) return null;
+  if (!mounted && !isOpen) return null;
 
   return (
     <div className={`feedback-modal-overlay ${animationClass}`} onClick={onClose}>
