@@ -28,21 +28,16 @@ export default function AnalyticsPage() {
       }
 
       try {
-        const targetUserId = user.id;
-        
-        // 1. Fetch evaluations
-        const { data: dbEvals, error: evalsError } = await supabase
-          .from('evaluations')
-          .select('*')
-          .eq('user_id', targetUserId)
-          .order('created_at', { ascending: false });
+        const res = await fetch('/api/analytics');
+        if (!res.ok) {
+          throw new Error(`API error: ${res.status}`);
+        }
+        const data = await res.json();
+        const dbEvals = data.evaluations || [];
 
         let loadedEvals: EvaluationRecord[] = [];
 
-        if (evalsError) {
-          console.warn('Supabase evaluations fetch error, falling back to localStorage:', evalsError);
-          loadedEvals = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
-        } else if (dbEvals && dbEvals.length > 0) {
+        if (dbEvals && dbEvals.length > 0) {
           loadedEvals = dbEvals.map((e: any) => ({
             id: e.id,
             score: e.score,
@@ -53,35 +48,21 @@ export default function AnalyticsPage() {
             date: e.created_at,
             extractedText: e.ocr_extracted_text,
             feedback: {
-              overall: e.ai_feedback?.overall || '',
+              overall: e.ai_feedback?.overall || e.ai_feedback?.markdown || '',
               strengths: e.ai_feedback?.strengths || [],
               weaknesses: e.ai_feedback?.weaknesses || []
             },
             breakdown: e.ai_feedback?.breakdown || []
           }));
           localStorage.setItem('write2rank_evals', JSON.stringify(loadedEvals));
-        } else {
-          loadedEvals = [];
         }
 
         setEvals(loadedEvals);
-
-        // 2. Fetch pre-calculated analytics
-        const { data: dbAnalytics, error: analyticsError } = await supabase
-          .from('analytics')
-          .select('*')
-          .eq('user_id', targetUserId)
-          .single();
-
-        if (!analyticsError && dbAnalytics) {
-          setWeakTopics(dbAnalytics.weak_topics || []);
-          setStrongTopics(dbAnalytics.strong_topics || []);
-        } else {
-          calculateDynamicTopics(loadedEvals);
-        }
+        setWeakTopics(data.weakTopics || []);
+        setStrongTopics(data.strongTopics || []);
 
       } catch (err) {
-        console.warn('Failed to connect to Supabase analytics, falling back:', err);
+        console.warn('Failed to connect to analytics API, falling back:', err);
         const local = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
         setEvals(local);
         calculateDynamicTopics(local);
@@ -123,7 +104,7 @@ export default function AnalyticsPage() {
     }
 
     loadAnalyticsData();
-  }, []);
+  }, [user, authLoading]);
 
   const totalEvals = evals.length;
   const completedEvals = evals.filter((e) => e.status === 'completed').length;
