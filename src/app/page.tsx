@@ -1528,6 +1528,20 @@ function PublicLandingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <a href="#privacy" style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600 transition-colors">Privacy Policy</a>
                 <a href="#terms" style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} className="hover:text-blue-600 transition-colors">Terms of Service</a>
+                <a 
+                  href="https://forms.gle/rnpjFmw6dorfXAJc6" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      console.log('[Analytics Event]: footer_feedback_clicked');
+                    }
+                  }}
+                  style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Feedback & Suggestions
+                </a>
               </div>
             </div>
 

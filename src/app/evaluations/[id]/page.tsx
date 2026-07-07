@@ -196,6 +196,9 @@ function limitToWordCount(text: string, targetWords: number): string {
   return resultParagraphs.join('\n').trim();
 }
 
+import FeedbackModal from '@/components/FeedbackModal';
+import { trackAnalyticsEvent } from '@/lib/analytics';
+
 export default function EvaluationDetail() {
   const params = useParams();
   const router = useRouter();
@@ -203,6 +206,7 @@ export default function EvaluationDetail() {
   
   const [evaluation, setEvaluation] = useState<EvaluationRecord | null>(null);
   const [activeSection, setActiveSection] = useState<'none' | 'detailed' | 'model' | 'improved' | 'revision'>('none');
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   useEffect(() => {
     async function loadDetail() {
@@ -252,6 +256,55 @@ export default function EvaluationDetail() {
       loadDetail();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!evaluation) return;
+
+    // Check modal conditions:
+    // 1. Did the user submit feedback ever? If so, never show it again.
+    if (localStorage.getItem('xaminix_feedback_submitted') === 'true') {
+      return;
+    }
+
+    // 2. Is there a "Maybe Later" cooldown? (30 days)
+    const snoozeTime = localStorage.getItem('xaminix_feedback_snoozed_until');
+    if (snoozeTime && Date.now() < parseInt(snoozeTime, 10)) {
+      return;
+    }
+
+    // 3. Has this specific evaluation ID already seen the feedback prompt?
+    if (localStorage.getItem(`xaminix_feedback_seen_${evaluation.id}`) === 'true') {
+      return;
+    }
+
+    // 4. Trigger only after the user's first successful evaluation (i.e. we check if write2rank_evals has length >= 1)
+    const savedEvals: EvaluationRecord[] = JSON.parse(localStorage.getItem('write2rank_evals') || '[]');
+    // We count the current one if it's not saved yet, or if it is saved, verify we have at least 1 evaluation completed.
+    if (savedEvals.length > 0) {
+      // Small timeout to let user view the page before triggering modal
+      const timer = setTimeout(() => {
+        setIsFeedbackOpen(true);
+        localStorage.setItem(`xaminix_feedback_seen_${evaluation.id}`, 'true');
+        trackAnalyticsEvent('feedback_modal_shown', { evaluationId: evaluation.id });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [evaluation]);
+
+  const handleGiveFeedback = () => {
+    trackAnalyticsEvent('feedback_clicked', { evaluationId: evaluation?.id });
+    localStorage.setItem('xaminix_feedback_submitted', 'true');
+    setIsFeedbackOpen(false);
+    window.open('https://forms.gle/rnpjFmw6dorfXAJc6', '_blank');
+  };
+
+  const handleCloseFeedback = () => {
+    trackAnalyticsEvent('feedback_dismissed', { evaluationId: evaluation?.id });
+    // Cooldown of 30 days
+    const snoozeUntil = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem('xaminix_feedback_snoozed_until', snoozeUntil.toString());
+    setIsFeedbackOpen(false);
+  };
 
   if (!evaluation) {
     return (
@@ -1318,6 +1371,11 @@ export default function EvaluationDetail() {
         </div>
       </div>
 
+      <FeedbackModal 
+        isOpen={isFeedbackOpen}
+        onClose={handleCloseFeedback}
+        onGiveFeedback={handleGiveFeedback}
+      />
     </div>
   );
 }
