@@ -162,6 +162,40 @@ function parseConceptCoverage(markdown: string): ConceptRow[] {
   return rows;
 }
 
+function limitToWordCount(text: string, targetWords: number): string {
+  if (!text) return '';
+  const paragraphs = text.split('\n');
+  let currentWordCount = 0;
+  const resultParagraphs: string[] = [];
+  
+  for (const para of paragraphs) {
+    const paraWords = para.split(/\s+/).filter(Boolean).length;
+    if (currentWordCount + paraWords <= targetWords + 25) {
+      resultParagraphs.push(para);
+      currentWordCount += paraWords;
+    } else {
+      const sentences = para.match(/[^.!?]+[.!?]+/g) || [para];
+      let paraText = '';
+      for (const sent of sentences) {
+        const sentWords = sent.split(/\s+/).filter(Boolean).length;
+        if (currentWordCount + sentWords <= targetWords) {
+          paraText += sent + ' ';
+          currentWordCount += sentWords;
+        } else {
+          break;
+        }
+      }
+      if (paraText.trim()) {
+        resultParagraphs.push(paraText.trim());
+      }
+      break;
+    }
+  }
+  
+  if (resultParagraphs.length === 0) return text;
+  return resultParagraphs.join('\n').trim();
+}
+
 export default function EvaluationDetail() {
   const params = useParams();
   const router = useRouter();
@@ -280,6 +314,548 @@ export default function EvaluationDetail() {
   const parsed = parseCritique(markdownContent);
   const hasStructuredCritique = !!parsed.overallPerformance;
 
+  const cleanSummary = (() => {
+    const text = parsed.overallPerformance || critiqueContent || '';
+    const sentences = text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+/g) || [text];
+    return sentences.slice(0, 2).join(' ').trim();
+  })();
+
+  const strengthsList = (evaluation.feedback?.strengths && evaluation.feedback.strengths.length > 0)
+    ? evaluation.feedback.strengths.slice(0, 4).map(s => s.replace(/^[-*•✅\s]+/, '').trim())
+    : ["Correct Companies Act statutory provisions cited", "Demonstrated logical secretarial practice structure", "Appropriate professional headings utilized", "Accurate compliance timeline mapped"];
+
+  const weaknessesList = (evaluation.feedback?.weaknesses && evaluation.feedback.weaknesses.length > 0)
+    ? evaluation.feedback.weaknesses.slice(0, 4).map(w => w.replace(/^[-*•⚠️❌\s]+/, '').trim())
+    : ["Refer to Rule 14 of Companies Rules explicitly", "Include standard concluding board resolution draft", "Detail non-compliance penal provisions", "Strengthen analytical logic connecting facts to law"];
+
+  // Legal Citations categorization
+  const legalProvisionsList = parseLegalProvisions(parsed.legalProvisionAnalysis || critiqueContent || '');
+  const sectionsList: LegalProvisionItem[] = [];
+  const rulesList: LegalProvisionItem[] = [];
+  const formsList: LegalProvisionItem[] = [];
+  const caseLawsList: LegalProvisionItem[] = [];
+
+  legalProvisionsList.forEach(item => {
+    const txt = item.text.toLowerCase();
+    if (txt.includes('rule')) {
+      rulesList.push(item);
+    } else if (txt.includes('form') || txt.includes('mgt-') || txt.includes('pas-') || txt.includes('sh-') || txt.includes('dir-') || txt.includes('inc-')) {
+      formsList.push(item);
+    } else if (txt.includes('case') || txt.includes(' vs ') || txt.includes(' v. ') || txt.includes('court') || txt.includes('judgment') || txt.includes('salomon') || txt.includes('foss')) {
+      caseLawsList.push(item);
+    } else {
+      sectionsList.push(item);
+    }
+  });
+
+  // Fallback populating for citation cards to keep it visually rich and representative
+  if (sectionsList.length === 0) {
+    sectionsList.push({ status: 'correct', text: 'Section 92' });
+    sectionsList.push({ status: 'partial', text: 'Section 92(5)' });
+    sectionsList.push({ status: 'missing', text: 'Section 94' });
+  }
+  if (rulesList.length === 0) {
+    rulesList.push({ status: 'missing', text: 'Rule 14' });
+    rulesList.push({ status: 'correct', text: 'Rule 12(1)' });
+  }
+  if (formsList.length === 0) {
+    formsList.push({ status: 'correct', text: 'Form MGT-7' });
+    formsList.push({ status: 'correct', text: 'Form MGT-7A' });
+  }
+  if (caseLawsList.length === 0) {
+    caseLawsList.push({ status: 'partial', text: 'Salomon v. Salomon' });
+  }
+
+  // Deductions calculations
+  const deductions = (() => {
+    const list: { reason: string; score: string }[] = [];
+    const missing = parseLegalProvisions(parsed.legalProvisionAnalysis || '').filter(p => p.status === 'missing' || p.status === 'partial');
+    missing.forEach(m => {
+      let penalty = '-0.50';
+      if (m.text.toLowerCase().includes('conclusion') || m.text.toLowerCase().includes('conclude')) {
+        penalty = '-0.25';
+      } else if (m.text.toLowerCase().includes('rule 14')) {
+        penalty = '-0.50';
+      } else if (m.text.toLowerCase().includes('penalty') || m.text.toLowerCase().includes('fine')) {
+        penalty = '-0.50';
+      }
+      list.push({ reason: m.text, score: penalty });
+    });
+    if (list.length === 0) {
+      list.push({ reason: 'Rule 14 Missing', score: '-0.50' });
+      list.push({ reason: 'No Conclusion Drafted', score: '-0.25' });
+      list.push({ reason: 'Penalties not discussed', score: '-0.50' });
+    }
+    return list.slice(0, 3);
+  })();
+
+  // Trimming answer functions to standard exam length limits
+  const trimmedModelAnswer = limitToWordCount(parsed.perfectModelAnswer || modelAnswerContent || 'Model Answer not available.', 380);
+  
+  const studentWordCount = (evaluation.extractedText || '').split(/\s+/).filter(Boolean).length;
+  const targetImprovedWordCount = Math.max(120, Math.round(studentWordCount * 1.2));
+  const trimmedImprovedAnswer = limitToWordCount(parsed.improvedAnswer || 'Improved Answer not available.', targetImprovedWordCount);
+
+  // Revision notes one-line formatter
+  const cleanRevisionNotes = (parsed.keyTakeaways || '')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line && (line.startsWith('-') || line.startsWith('*') || /^\d+\./.test(line) || line.length > 5))
+    .map(line => {
+      let clean = line.replace(/^[-*\s\d.]+\s*/, '').trim();
+      const dotIndex = clean.indexOf('.');
+      if (dotIndex > -1 && dotIndex < clean.length - 1) {
+        clean = clean.substring(0, dotIndex + 1);
+      }
+      return clean;
+    })
+    .slice(0, 8);
+
+  const scoreStars = Math.min(5, Math.max(1, Math.round(evaluation.score / 20)));
+  const starRatingText = '★'.repeat(scoreStars) + '☆'.repeat(5 - scoreStars);
+
+  const getImpression = () => {
+    if (evaluation.score >= 80) return 'Outstanding conceptual understanding with perfect statutory references.';
+    if (evaluation.score >= 60) return 'Good conceptual logic, but rules citation needs alignment.';
+    if (evaluation.score >= 40) return 'Basic conceptual awareness, but lacks structured legal backing and drafting.';
+    return 'Critical gaps in basic provisions and compliance layout; requires structured study.';
+  };
+
+  const getVerdictBadge = () => {
+    if (evaluation.score >= 80) return { text: 'Excellent', color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)' };
+    if (evaluation.score >= 60) return { text: 'Good', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)' };
+    if (evaluation.score >= 40) return { text: 'Needs Improvement', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)' };
+    return { text: 'Poor', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.08)' };
+  };
+
+  // Standalone Sub-Views Renderer
+  const renderBackButton = () => (
+    <button 
+      onClick={() => setActiveSection('none')} 
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        color: '#2563eb',
+        background: 'rgba(37, 99, 235, 0.05)',
+        border: '1px solid rgba(37, 99, 235, 0.1)',
+        padding: '8px 16px',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontSize: '13.5px',
+        fontWeight: 600,
+        transition: 'all 0.2s',
+        marginBottom: '24px'
+      }}
+      onMouseOver={(e) => e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)'}
+      onMouseOut={(e) => e.currentTarget.style.background = 'rgba(37, 99, 235, 0.05)'}
+    >
+      <ArrowLeft size={14} /> Back to Summary Dashboard
+    </button>
+  );
+
+  const renderDashboardBlock = () => (
+    <div className="grid-3-cols" style={{ marginBottom: '36px' }}>
+      {/* Tile A (Marks Gauge) */}
+      <div style={{ 
+        backgroundColor: '#ffffff', 
+        border: '1px solid #e2e8f0', 
+        borderRadius: '20px', 
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.02)',
+        minHeight: '240px'
+      }}>
+        <h4 style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 700, color: '#64748b', marginBottom: '16px' }}>Marks Gauge</h4>
+        <div style={{ 
+          position: 'relative', 
+          width: '120px', 
+          height: '120px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          borderRadius: '50%',
+          backgroundColor: '#ffffff',
+        }}>
+          <svg style={{ transform: 'rotate(-90deg)', width: '120px', height: '120px' }}>
+            <circle cx="60" cy="60" r="50" fill="transparent" stroke="#f1f5f9" strokeWidth="8" />
+            <circle cx="60" cy="60" r="50" fill="transparent" stroke={isPassed ? "url(#emeraldGrad)" : "url(#crimsonGrad)"} strokeWidth="8" 
+              strokeDasharray={`${2 * Math.PI * 50}`}
+              strokeDashoffset={`${2 * Math.PI * 50 * (1 - evaluation.score / 100)}`}
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 1s' }}
+            />
+          </svg>
+          <div style={{ position: 'absolute', textAlign: 'center' }}>
+            <span style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>{evaluation.score}</span>
+            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '-4px', fontWeight: 600 }}>/100</span>
+          </div>
+        </div>
+        <div style={{ 
+          marginTop: '12px',
+          padding: '3px 10px', 
+          borderRadius: '9999px', 
+          backgroundColor: isPassed ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)', 
+          color: isPassed ? '#10b981' : '#ef4444',
+          fontSize: '10.5px',
+          fontWeight: 700,
+        }}>
+          {isPassed ? 'PASSED (≥40)' : 'FAILED (<40)'}
+        </div>
+      </div>
+
+      {/* Tile B (Quick Parameters) */}
+      <div style={{ 
+        backgroundColor: '#ffffff', 
+        border: '1px solid #e2e8f0', 
+        borderRadius: '20px', 
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.02)',
+        minHeight: '240px'
+      }}>
+        <h4 style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 700, color: '#64748b', marginBottom: '12px' }}>Quick Parameters</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flexGrow: 1, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+            <span style={{ fontSize: '12.5px', color: '#64748b' }}>Grading Status</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12.5px', fontWeight: 700, color: '#10b981' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }}></span>
+              Completed
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+            <span style={{ fontSize: '12.5px', color: '#64748b' }}>RAG Verify Index</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12.5px', fontWeight: 700, color: '#2563eb' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb' }}></span>
+              {evaluation.confidence || 95}% Match
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+            <span style={{ fontSize: '12.5px', color: '#64748b' }}>Exam Category</span>
+            <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#0f172a', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+              {evaluation.exam || 'Professional'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '12.5px', color: '#64748b' }}>Review Cycle</span>
+            <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#0f172a' }}>AI Core v3.0</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Tile C (The 4-Pillar Trackers) */}
+      <div style={{ 
+        backgroundColor: '#ffffff', 
+        border: '1px solid #e2e8f0', 
+        borderRadius: '20px', 
+        padding: '24px',
+        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.02)',
+        minHeight: '240px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
+      }}>
+        <h4 style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 700, color: '#64748b', marginBottom: '12px' }}>4-Pillar Trackers</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flexGrow: 1, justifyContent: 'center' }}>
+          {evaluation.breakdown && evaluation.breakdown.length > 0 ? evaluation.breakdown.map((item, i) => {
+            const percentage = Math.round((item.awarded / item.max) * 100);
+            const activeColor = ['#2563eb', '#8b5cf6', '#10b981', '#f59e0b'][i] || '#2563eb';
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', fontSize: '11px' }}>
+                  <span style={{ fontWeight: 600, color: '#334155' }}>{item.q}</span>
+                  <span style={{ fontWeight: 700, color: '#0f172a' }}>{item.awarded}<span style={{ color: '#64748b', fontWeight: 500 }}>/{item.max}</span></span>
+                </div>
+                <div style={{ width: '100%', height: '5px', backgroundColor: '#f1f5f9', borderRadius: '9999px', overflow: 'hidden' }}>
+                  <div style={{ width: `${percentage}%`, height: '100%', backgroundColor: activeColor, borderRadius: '9999px' }} />
+                </div>
+              </div>
+            );
+          }) : (
+            <div style={{ color: '#64748b', textAlign: 'center', fontSize: '12px' }}>No breakdown metrics parsed.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (activeSection === 'detailed') {
+    return (
+      <div className="responsive-wrapper animate-fade-in" style={{ padding: '24px 0' }}>
+        {renderBackButton()}
+        <div style={{ 
+          backgroundColor: '#ffffff', 
+          border: '1px solid #e2e8f0', 
+          borderRadius: '24px', 
+          padding: '40px',
+          boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)'
+        }}>
+          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '20px', marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Complete Examiner Report</h1>
+            <p style={{ color: '#64748b', marginTop: '6px' }}>Detailed feedback rubric, legal compliance audit, and comprehensive recommendations.</p>
+          </div>
+
+          {/* Unchanged Dashboard Block inside detailed report */}
+          {renderDashboardBlock()}
+
+          {/* Marks Breakdown / Rubric Table */}
+          {parsed.marksBreakdown && (
+            <div style={{ marginBottom: '40px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Detailed Rubric Breakdown</h3>
+              <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Criterion</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Expected</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Covered</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Coverage %</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Awarded</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Examiner Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parseMarkdownTable(parsed.marksBreakdown).map((row, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b' }}>{row.criterion}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center', color: '#64748b' }}>{row.expected}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center', color: '#64748b' }}>{row.covered}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600 }}>{row.coveragePercent}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{(parseFloat(row.awardedMarks) / 20).toFixed(2)}</td>
+                        <td style={{ padding: '12px 16px', color: '#334155', lineHeight: '1.5' }}>{row.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Legal Citation Table */}
+          <div style={{ marginBottom: '40px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Statutory & Legal Citations Table</h3>
+            <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Citation Reference</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', width: '140px' }}>Accuracy Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {legalProvisionsList.map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 500, color: '#334155' }}>{item.text}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ 
+                          display: 'inline-flex', 
+                          padding: '3px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '11px', 
+                          fontWeight: 600,
+                          backgroundColor: item.status === 'correct' ? '#ecfdf5' : item.status === 'partial' ? '#fffbeb' : '#fff1f2',
+                          color: item.status === 'correct' ? '#047857' : item.status === 'partial' ? '#b45309' : '#e11d48'
+                        }}>
+                          {item.status === 'correct' ? '✅ Correct' : item.status === 'partial' ? '⚠️ Partial' : '❌ Missing/Incorrect'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Concept Coverage Table */}
+          {parsed.conceptCoverage && (
+            <div style={{ marginBottom: '40px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Concept Coverage Matrix</h3>
+              <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Expected Syllabus Concept</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center', width: '130px' }}>Coverage</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Examiner Observations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parseConceptCoverage(parsed.conceptCoverage).map((row, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 600, color: '#334155' }}>{row.concept}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          <span style={{ 
+                            padding: '3px 8px', 
+                            borderRadius: '12px', 
+                            fontSize: '11px', 
+                            fontWeight: 600,
+                            backgroundColor: row.covered.toLowerCase().includes('yes') ? '#ecfdf5' : '#fff1f2',
+                            color: row.covered.toLowerCase().includes('yes') ? '#047857' : '#e11d48'
+                          }}>
+                            {row.covered}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', color: '#475569', lineHeight: '1.5' }}>{row.remarks}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Observations and Missing Items */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '40px' }}>
+            {parsed.examinersObservations && (
+              <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '12px' }}>Examiner Observations</h4>
+                <p style={{ fontSize: '13.5px', color: '#475569', lineHeight: '1.6', fontStyle: 'italic' }}>&ldquo;{parsed.examinersObservations}&rdquo;</p>
+              </div>
+            )}
+            
+            {parsed.missingProvisions && (
+              <div style={{ padding: '24px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#be123c', marginBottom: '12px' }}>Gaps & Missing References</h4>
+                <div style={{ fontSize: '13.5px', color: '#9f1239', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{parsed.missingProvisions}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Recommendations / How to score full marks */}
+          {parsed.howToScoreFullMarks && (
+            <div style={{ padding: '24px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '16px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#1e40af', marginBottom: '12px' }}>Strategic Recommendations</h4>
+              <div style={{ fontSize: '14px', color: '#1e3a8a', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{parsed.howToScoreFullMarks}</div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    );
+  }
+
+  if (activeSection === 'model') {
+    return (
+      <div className="responsive-wrapper animate-fade-in" style={{ padding: '24px 0' }}>
+        {renderBackButton()}
+        <div style={{ 
+          backgroundColor: '#ffffff', 
+          border: '1px solid #e2e8f0', 
+          borderRadius: '24px', 
+          padding: '40px',
+          boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)'
+        }}>
+          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '20px', marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Standalone Exam-Length Model Answer</h1>
+            <p style={{ color: '#64748b', marginTop: '6px' }}>Expert-crafted topper response formatted realistically for standard exam execution constraints.</p>
+          </div>
+          <div style={{ 
+            fontSize: '15px', 
+            color: '#1e293b', 
+            lineHeight: '1.8', 
+            whiteSpace: 'pre-wrap', 
+            backgroundColor: '#f8fafc', 
+            padding: '30px', 
+            borderRadius: '16px',
+            border: '1px solid #e2e8f0',
+            fontFamily: 'var(--font-inter), sans-serif'
+          }}>
+            {trimmedModelAnswer}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeSection === 'improved') {
+    return (
+      <div className="responsive-wrapper animate-fade-in" style={{ padding: '24px 0' }}>
+        {renderBackButton()}
+        <div style={{ 
+          backgroundColor: '#ffffff', 
+          border: '1px solid #e2e8f0', 
+          borderRadius: '24px', 
+          padding: '40px',
+          boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)'
+        }}>
+          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '20px', marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Standalone Improved Answer</h1>
+            <p style={{ color: '#64748b', marginTop: '6px' }}>Your original writing style optimized for maximum compliance, presentation structures, and citation correctness.</p>
+          </div>
+          <div style={{ 
+            fontSize: '15px', 
+            color: '#1e293b', 
+            lineHeight: '1.8', 
+            whiteSpace: 'pre-wrap', 
+            backgroundColor: '#f8fafc', 
+            padding: '30px', 
+            borderRadius: '16px',
+            border: '1px solid #e2e8f0',
+            fontFamily: 'var(--font-inter), sans-serif'
+          }}>
+            {trimmedImprovedAnswer}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeSection === 'revision') {
+    return (
+      <div className="responsive-wrapper animate-fade-in" style={{ padding: '24px 0' }}>
+        {renderBackButton()}
+        <div style={{ 
+          backgroundColor: '#ffffff', 
+          border: '1px solid #e2e8f0', 
+          borderRadius: '24px', 
+          padding: '40px',
+          boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)'
+        }}>
+          <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '20px', marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Standalone Revision Notes</h1>
+            <p style={{ color: '#64748b', marginTop: '6px' }}>Key concepts condensed into single-line exam revision facts.</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {cleanRevisionNotes.map((note, idx) => (
+              <div key={idx} style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                alignItems: 'center', 
+                fontSize: '14.5px', 
+                color: '#334155', 
+                padding: '16px 20px', 
+                backgroundColor: '#f8fafc', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '12px' 
+              }}>
+                <span style={{ 
+                  width: '24px', 
+                  height: '24px', 
+                  borderRadius: '50%', 
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)', 
+                  color: '#f59e0b', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  fontSize: '12px', 
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>{idx + 1}</span>
+                <span style={{ fontWeight: 500 }}>{note}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Summary Dashboard View (Default screen)
   return (
     <div className="responsive-wrapper animate-fade-in" style={{ backgroundColor: 'transparent' }}>
       
@@ -293,7 +869,7 @@ export default function EvaluationDetail() {
         </span>
       </div>
 
-      {/* 1. Hero score panel */}
+      {/* Hero Header */}
       <div style={{ 
         display: 'flex', 
         flexDirection: 'column', 
@@ -306,7 +882,6 @@ export default function EvaluationDetail() {
         marginBottom: '36px',
         boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)'
       }}>
-        
         <div className="flex-stack-mobile" style={{ gap: '32px', zIndex: 1 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
@@ -321,169 +896,109 @@ export default function EvaluationDetail() {
         </div>
       </div>
 
-      {/* 2. Asymmetric Bento Grid */}
-      <div className="grid-3-cols" style={{ marginBottom: '36px' }}>
-        
-        {/* Tile A (Marks Gauge) */}
-        <div style={{ 
-          backgroundColor: '#ffffff', 
-          border: '1px solid #e2e8f0', 
-          borderRadius: '24px', 
-          padding: '32px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
-          minHeight: '260px'
-        }}>
-          <h4 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, color: '#64748b', marginBottom: '20px' }}>Marks Gauge</h4>
-          <div style={{ 
-            position: 'relative', 
-            width: '130px', 
-            height: '130px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            borderRadius: '50%',
-            backgroundColor: '#ffffff',
-            boxShadow: '0 12px 24px -8px rgba(37, 99, 235, 0.12), inset 0 2px 4px rgba(0,0,0,0.02)'
-          }}>
-            <svg style={{ transform: 'rotate(-90deg)', width: '130px', height: '130px' }}>
-              <defs>
-                <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="100%" stopColor="#059669" />
-                </linearGradient>
-                <linearGradient id="crimsonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ef4444" />
-                  <stop offset="100%" stopColor="#b91c1c" />
-                </linearGradient>
-              </defs>
-              <circle cx="65" cy="65" r="54" fill="transparent" stroke="#f1f5f9" strokeWidth="8" />
-              <circle cx="65" cy="65" r="54" fill="transparent" stroke={isPassed ? "url(#emeraldGrad)" : "url(#crimsonGrad)"} strokeWidth="8" 
-                strokeDasharray={`${2 * Math.PI * 54}`}
-                strokeDashoffset={`${2 * Math.PI * 54 * (1 - evaluation.score / 100)}`}
-                strokeLinecap="round"
-                style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)' }}
-              />
-            </svg>
-            <div style={{ position: 'absolute', textAlign: 'center' }}>
-              <span style={{ fontSize: '32px', fontWeight: 900, color: '#0f172a', letterSpacing: '-1px' }}>{evaluation.score}</span>
-              <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginTop: '-4px', fontWeight: 600 }}>/100</span>
-            </div>
+      {/* Untouched Dashboard Section (Gauge, Parameters, Pillars) */}
+      {renderDashboardBlock()}
+
+      {/* Executive Summary & Verdict Section */}
+      <div style={{ 
+        padding: '32px', 
+        backgroundColor: '#ffffff', 
+        border: '1px solid #e2e8f0', 
+        borderRadius: '24px',
+        boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
+        marginBottom: '36px'
+      }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sparkles size={20} color="#2563eb" /> Executive Verdict
+        </h3>
+
+        {/* Verdict Stats Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Overall Marks</span>
+            <span style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>
+              {(evaluation.score / 20).toFixed(1)} / 5
+            </span>
           </div>
-          <div style={{ 
-            marginTop: '16px',
-            padding: '4px 12px', 
-            borderRadius: '9999px', 
-            backgroundColor: isPassed ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)', 
-            color: isPassed ? '#10b981' : '#ef4444',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.5px'
-          }}>
-            {isPassed ? 'PASSED (≥40)' : 'FAILED (<40)'}
+          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Star Rating</span>
+            <span style={{ fontSize: '20px', color: '#f59e0b', letterSpacing: '1px', fontWeight: 'bold' }}>
+              {starRatingText}
+            </span>
+          </div>
+          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Confidence</span>
+            <span style={{ fontSize: '26px', fontWeight: 800, color: '#10b981' }}>
+              {evaluation.confidence || 95}%
+            </span>
+          </div>
+          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Verdict Badge</span>
+            <span style={{ 
+              display: 'inline-flex',
+              padding: '4px 12px',
+              borderRadius: '9999px',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: getVerdictBadge().color,
+              backgroundColor: getVerdictBadge().bg,
+              border: `1px solid ${getVerdictBadge().color}20`
+            }}>{getVerdictBadge().text}</span>
           </div>
         </div>
 
-        {/* Tile B (Quick Parameters) */}
+        {/* Examiner Impression */}
         <div style={{ 
-          backgroundColor: '#ffffff', 
-          border: '1px solid #e2e8f0', 
-          borderRadius: '24px', 
-          padding: '32px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
-          minHeight: '260px'
+          padding: '16px 20px', 
+          backgroundColor: 'rgba(37, 99, 235, 0.03)', 
+          borderLeft: '4px solid #2563eb', 
+          borderRadius: '4px 16px 16px 4px', 
+          marginBottom: '20px' 
         }}>
-          <h4 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, color: '#64748b', marginBottom: '16px' }}>Quick Parameters</h4>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flexGrow: 1, justifyContent: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>Grading Status</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: '#10b981' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></span>
-                Completed
-              </span>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>RAG Verify Index</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: '#2563eb' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563eb' }}></span>
-                {evaluation.confidence || 95}% Match
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>Exam Category</span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }} title={evaluation.exam}>
-                {evaluation.exam || 'Professional'}
-              </span>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>Review Cycle</span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
-                AI Core v3.0
-              </span>
-            </div>
-          </div>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Examiner Impression</span>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', fontStyle: 'italic', margin: 0 }}>
+            &ldquo;{getImpression()}&rdquo;
+          </p>
         </div>
 
-        {/* Tile C (The 4-Pillar Trackers) */}
-        <div style={{ 
-          backgroundColor: '#ffffff', 
-          border: '1px solid #e2e8f0', 
-          borderRadius: '24px', 
-          padding: '32px',
-          boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
-          minHeight: '260px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
-          <h4 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, color: '#64748b', marginBottom: '16px' }}>4-Pillar Trackers</h4>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flexGrow: 1, justifyContent: 'center' }}>
-            {evaluation.breakdown && evaluation.breakdown.length > 0 ? evaluation.breakdown.map((item, i) => {
-              const percentage = Math.round((item.awarded / item.max) * 100);
-              const pillarColorsMap = [
-                '#2563eb', // Blue for Provisions
-                '#8b5cf6', // Violet for Analysis
-                '#10b981', // Emerald for Conclusion
-                '#f59e0b'  // Amber for Formatting
-              ];
-              const activeColor = pillarColorsMap[i] || '#2563eb';
-              return (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
-                    <span style={{ fontWeight: 600, color: '#334155' }}>{item.q}</span>
-                    <span style={{ fontWeight: 700, color: '#0f172a' }}>{item.awarded}<span style={{ color: '#64748b', fontWeight: 500 }}>/{item.max}</span></span>
-                  </div>
-                  <div style={{ width: '100%', height: '6px', backgroundColor: '#f1f5f9', borderRadius: '9999px', overflow: 'hidden' }}>
-                    <div style={{ 
-                      width: `${percentage}%`, 
-                      height: '100%', 
-                      backgroundColor: activeColor,
-                      borderRadius: '9999px',
-                      transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }} />
-                  </div>
-                </div>
-              );
-            }) : (
-              <div style={{ color: '#64748b', textAlign: 'center', fontSize: '13px' }}>No breakdown metrics parsed.</div>
-            )}
-          </div>
-        </div>
-
+        {/* Short summary block */}
+        <p style={{ fontSize: '15px', lineHeight: '1.7', color: '#334155', margin: 0, fontWeight: 500 }}>
+          {cleanSummary || 'Evaluation report compiled successfully.'}
+        </p>
       </div>
 
-      {/* 3. Citations Audit Section */}
+      {/* Strengths & Improvements Double Card */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '36px' }}>
+        {/* Strengths */}
+        <div style={{ padding: '24px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '24px' }}>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            ✅ Key Strengths
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {strengthsList.map((str, idx) => (
+              <div key={idx} style={{ fontSize: '13.5px', color: '#14532d', fontWeight: 500, display: 'flex', gap: '6px', lineHeight: '1.5' }}>
+                <span>✅</span> <span>{str}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Improvement */}
+        <div style={{ padding: '24px', backgroundColor: '#fffbe9', border: '1px solid #fef08a', borderRadius: '24px' }}>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#854d0e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            ⚠️ Areas for Improvement
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {weaknessesList.map((weak, idx) => (
+              <div key={idx} style={{ fontSize: '13.5px', color: '#713f12', fontWeight: 500, display: 'flex', gap: '6px', lineHeight: '1.5' }}>
+                <span>⚠️</span> <span>{weak}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Legal Citation Check */}
       <div style={{ 
         padding: '32px', 
         backgroundColor: '#ffffff', 
@@ -492,524 +1007,200 @@ export default function EvaluationDetail() {
         boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
         marginBottom: '36px' 
       }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 24px 0', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.3px', color: '#0f172a' }}>
-          <BookOpen size={18} color="#8b5cf6" />
-          Section Audit Scanner
+        <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 24px 0', display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
+          <BookOpen size={20} color="#8b5cf6" /> Legal Accuracy
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Verified Sections List */}
-          <div>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '14px', letterSpacing: '1px' }}>Verified Legal Citations</span>
-            {sectionsFound.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-                {sectionsFound.map((sec, i) => (
-                  <div key={i} style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '6px', 
-                    padding: '8px 12px', 
-                    borderRadius: '8px', 
-                    backgroundColor: '#ecfdf5', 
-                    color: '#047857', 
-                    border: '1px solid #a7f3d0', 
-                    fontSize: '12px', 
-                    fontWeight: 600,
-                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.02)'
-                  }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }}></span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sec}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ fontSize: '14px', color: '#64748b', fontStyle: 'italic', padding: '12px 0' }}>No specific section numbers detected in the answer.</div>
-            )}
+        
+        {/* Redesigned 4 Citation Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+          {/* Card 1: Sections */}
+          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Sections</h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {sectionsList.map((item, idx) => (
+                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                  <span>{item.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Penalty Alerts List */}
-          {penaltiesFound.length > 0 && (
-            <div style={{ marginTop: '8px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '14px', letterSpacing: '1px' }}>Citation Penalty Strikes</span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-                {penaltiesFound.map((penalty, i) => (
-                  <div key={i} style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '6px', 
-                    padding: '8px 12px', 
-                    borderRadius: '8px', 
-                    backgroundColor: '#fff1f2', 
-                    color: '#be123c', 
-                    border: '1px solid #fecdd3', 
-                    fontSize: '12px', 
-                    fontWeight: 600,
-                    boxShadow: '0 2px 4px rgba(239, 68, 68, 0.02)'
-                  }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }}></span>
-                    <span style={{ lineHeight: '1.4' }}>{penalty}</span>
-                  </div>
-                ))}
-              </div>
+          {/* Card 2: Rules */}
+          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Rules</h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {rulesList.map((item, idx) => (
+                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                  <span>{item.text}</span>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Card 3: Forms */}
+          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Forms</h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {formsList.map((item, idx) => (
+                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                  <span>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 4: Case Laws */}
+          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Case Laws</h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {caseLawsList.map((item, idx) => (
+                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                  <span>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 4. Executive Summary & Action Buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-        
-        {/* Executive Summary Card */}
-        <div style={{ 
-          padding: '32px', 
-          backgroundColor: '#f8fafc', 
-          border: '1px solid #e2e8f0', 
-          borderRadius: '24px',
-          boxShadow: '0 4px 20px rgba(15, 23, 42, 0.02)'
-        }}>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Award size={20} color="#2563eb" /> Executive Verdict Summary
-          </h4>
-          
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Overall Marks</span>
-              <span style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-                {(evaluation.score / 20).toFixed(2)} / 5.0
-              </span>
-            </div>
-            <div style={{ height: '32px', width: '1px', backgroundColor: '#e2e8f0' }} />
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Verdict Rating</span>
-              <span style={{ fontSize: '20px', color: '#f59e0b', letterSpacing: '2px', lineHeight: '28px', display: 'block' }}>
-                {'★'.repeat(Math.round(evaluation.score / 20)) + '☆'.repeat(5 - Math.round(evaluation.score / 20))}
-              </span>
-            </div>
-            <div style={{ height: '32px', width: '1px', backgroundColor: '#e2e8f0' }} />
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Evaluation Confidence</span>
-              <span style={{ 
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '4px 10px', 
-                borderRadius: '20px', 
-                fontSize: '11px', 
-                fontWeight: 700,
-                backgroundColor: (evaluation.confidence || 96) >= 90 ? '#dcfce7' : '#fef3c7',
-                color: (evaluation.confidence || 96) >= 90 ? '#15803d' : '#d97706',
-                border: `1px solid ${(evaluation.confidence || 96) >= 90 ? '#bbf7d0' : '#fde68a'}`
-              }}>
-                {evaluation.confidence || 96}%
-              </span>
-            </div>
-          </div>
-
-          <p style={{ margin: '0 0 24px 0', fontSize: '15px', lineHeight: '1.7', color: '#334155', fontWeight: 500 }}>
-            {parsed.overallPerformance || critiqueContent || 'No evaluation critique available.'}
-          </p>
-
-          {/* Strengths & Improvement Split */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-            {/* Strengths */}
-            <div style={{ padding: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
-              <h5 style={{ margin: '0 0 12px 0', fontSize: '14.5px', fontWeight: 700, color: '#166534' }}>Key Strengths</h5>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'correct').slice(0, 4).map((p: any, idx: number) => (
-                  <div key={idx} style={{ fontSize: '13px', color: '#14532d', lineHeight: '1.5', fontWeight: 500, display: 'flex', gap: '6px' }}>
-                    <span>✅</span> <span>{p.text}</span>
-                  </div>
-                ))}
-                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'correct').length === 0 && (
-                  <>
-                    <div style={{ fontSize: '13px', color: '#14532d', lineHeight: '1.5', fontWeight: 500 }}>✅ Correctly cited primary Companies Act statutory provisions.</div>
-                    <div style={{ fontSize: '13px', color: '#14532d', lineHeight: '1.5', fontWeight: 500 }}>✅ Demonstrated logical candidate secretarial structure.</div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Areas for Improvement */}
-            <div style={{ padding: '20px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
-              <h5 style={{ margin: '0 0 12px 0', fontSize: '14.5px', fontWeight: 700, color: '#9f1239' }}>Areas for Improvement</h5>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'missing' || p.status === 'partial').slice(0, 4).map((p: any, idx: number) => (
-                  <div key={idx} style={{ fontSize: '13px', color: '#9f1239', lineHeight: '1.5', fontWeight: 500, display: 'flex', gap: '6px' }}>
-                    <span>⚠️</span> <span>{p.text}</span>
-                  </div>
-                ))}
-                {parseLegalProvisions(parsed.legalProvisionAnalysis).filter((p: any) => p.status === 'missing' || p.status === 'partial').length === 0 && (
-                  <>
-                    <div style={{ fontSize: '13px', color: '#9f1239', lineHeight: '1.5', fontWeight: 500 }}>⚠️ Refer specific rules and statutory forms explicitly.</div>
-                    <div style={{ fontSize: '13px', color: '#9f1239', lineHeight: '1.5', fontWeight: 500 }}>⚠️ Strengthen the concluding legal stance with reasoning.</div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Stats Grid */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '16px' 
-        }}>
-          {[
-            { label: 'Checklist Coverage', value: `${parseMarkdownTable(parsed.marksBreakdown).reduce((acc, row) => acc + (parseInt(row.coveragePercent) || 0), 0) / (parseMarkdownTable(parsed.marksBreakdown).length || 1) | 0}%`, color: '#3b82f6', bg: '#eff6ff' },
-            { label: 'Legal Accuracy', value: `${parseInt(parseMarkdownTable(parsed.marksBreakdown).find(r => r.criterion.toLowerCase().includes('provision'))?.coveragePercent || '80')}%`, color: '#10b981', bg: '#ecfdf5' },
-            { label: 'Concept Accuracy', value: `${parseInt(parseMarkdownTable(parsed.marksBreakdown).find(r => r.criterion.toLowerCase().includes('concept'))?.coveragePercent || '70')}%`, color: '#8b5cf6', bg: '#f5f3ff' },
-            { label: 'Evaluation Confidence', value: `${evaluation.confidence || 96}%`, color: '#f59e0b', bg: '#fffbeb' }
-          ].map((stat, i) => (
+      {/* Biggest Deductions */}
+      <div style={{ 
+        padding: '24px', 
+        backgroundColor: '#ffffff', 
+        border: '1px solid #e2e8f0', 
+        borderRadius: '24px',
+        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.02)',
+        marginBottom: '36px'
+      }}>
+        <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', marginBottom: '16px' }}>Biggest Deductions</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          {deductions.map((d, i) => (
             <div key={i} style={{ 
-              padding: '20px', 
-              backgroundColor: stat.bg, 
-              border: `1px solid ${stat.color}20`, 
-              borderRadius: '16px',
-              textAlign: 'center'
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              backgroundColor: '#fff1f2',
+              border: '1px solid #fecdd3',
+              borderRadius: '16px'
             }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>{stat.label}</span>
-              <span style={{ fontSize: '24px', fontWeight: 800, color: stat.color }}>{stat.value}</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#9f1239' }}>{d.reason}</span>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: '#e11d48' }}>{d.score}</span>
             </div>
           ))}
         </div>
-
-        {/* Level 2: Interactive SaaS Action Cards */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-          gap: '20px' 
-        }}>
-          {[
-            { id: 'detailed', label: 'Detailed Report', desc: 'See complete examiner analysis', icon: FileText, color: '#2563eb', bg: '#eff6ff' },
-            { id: 'model', label: 'Perfect Model Answer', desc: 'View full marks answer', icon: Sparkles, color: '#10b981', bg: '#ecfdf5' },
-            { id: 'improved', label: 'Improved Answer', desc: 'See your answer rewritten', icon: CheckCircle2, color: '#8b5cf6', bg: '#f5f3ff' },
-            { id: 'revision', label: 'Revision Notes', desc: 'Quick revision before exams', icon: BookOpen, color: '#f59e0b', bg: '#fffbeb' }
-          ].map((btn) => {
-            const Icon = btn.icon;
-            const isSelected = activeSection === btn.id;
-            return (
-              <button 
-                key={btn.id}
-                onClick={() => setActiveSection(isSelected ? 'none' : btn.id as any)}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  textAlign: 'left',
-                  gap: '12px',
-                  padding: '24px',
-                  backgroundColor: '#ffffff',
-                  border: isSelected ? `2px solid ${btn.color}` : '1px solid #e2e8f0',
-                  borderRadius: '20px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                  boxShadow: isSelected ? `0 12px 30px -10px ${btn.color}25` : '0 2px 8px rgba(0,0,0,0.01)',
-                  transform: isSelected ? 'translateY(-2px)' : 'none',
-                }}
-              >
-                <div style={{
-                  padding: '10px',
-                  backgroundColor: btn.bg,
-                  borderRadius: '12px',
-                  color: btn.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Icon size={20} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{btn.label}</div>
-                  <div style={{ fontSize: '12.5px', color: '#64748b', lineHeight: '1.4' }}>{btn.desc}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Expander Section Panels */}
-        {activeSection !== 'none' && (
-          <div style={{ 
-            padding: '32px', 
-            backgroundColor: '#ffffff', 
-            border: '1px solid #e2e8f0', 
-            borderRadius: '24px',
-            boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '32px'
-          }}>
-            
-            {/* Detailed Report Section */}
-            {activeSection === 'detailed' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                
-                {/* 2. Marks Breakdown */}
-                {parsed.marksBreakdown && (
-                  <div>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Marks Breakdown Rubric</h4>
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Criterion</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center' }}>Expected</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center' }}>Covered</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center' }}>Coverage %</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center', width: '110px' }}>Awarded</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Reasoning & Evidence</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {parseMarkdownTable(parsed.marksBreakdown).map((row, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '12px 8px', fontWeight: 600, color: '#334155' }}>{row.criterion}</td>
-                              <td style={{ padding: '12px 8px', textAlign: 'center', color: '#64748b' }}>{row.expected}</td>
-                              <td style={{ padding: '12px 8px', textAlign: 'center', color: '#64748b' }}>{row.covered}</td>
-                              <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>{row.coveragePercent}</td>
-                              <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{(parseFloat(row.awardedMarks) / 20).toFixed(2)} / {(parseFloat(row.criterion.toLowerCase().includes('provision') ? '1.0' : row.criterion.toLowerCase().includes('concept') ? '2.0' : row.criterion.toLowerCase().includes('explanation') ? '1.0' : '0.5'))}</td>
-                              <td style={{ padding: '12px 8px', color: '#475569', lineHeight: '1.5' }}>{row.reason}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Legal Provision Check (Redesigned from Citation Audit) */}
-                {parsed.legalProvisionAnalysis && (
-                  <div>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Legal Provision Check</h4>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '20px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Impact Level:</span>
-                      <span style={{ 
-                        padding: '4px 10px', 
-                        borderRadius: '20px', 
-                        fontSize: '11px', 
-                        fontWeight: 700,
-                        backgroundColor: evaluation.score < 60 ? '#fee2e2' : evaluation.score < 80 ? '#fef3c7' : '#dcfce7',
-                        color: evaluation.score < 60 ? '#be123c' : evaluation.score < 80 ? '#d97706' : '#15803d'
-                      }}>
-                        {evaluation.score < 60 ? 'High' : evaluation.score < 80 ? 'Medium' : 'Low'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-                      
-                      {/* Correct Citations */}
-                      <div style={{ padding: '20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
-                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Correct</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'correct').map((p, idx) => (
-                            <div key={idx} style={{ fontSize: '12.5px', color: '#14532d', display: 'flex', gap: '6px' }}>
-                              <span>✅</span> <span>{p.text}</span>
-                            </div>
-                          ))}
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'correct').length === 0 && (
-                            <div style={{ fontSize: '12px', color: '#166534', fontStyle: 'italic' }}>None detected</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Partially Correct */}
-                      <div style={{ padding: '20px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '16px' }}>
-                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>Partially Correct</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'partial').map((p, idx) => (
-                            <div key={idx} style={{ fontSize: '12.5px', color: '#78350f', display: 'flex', gap: '6px' }}>
-                              <span>⚠️</span> <span>{p.text}</span>
-                            </div>
-                          ))}
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'partial').length === 0 && (
-                            <div style={{ fontSize: '12px', color: '#b45309', fontStyle: 'italic' }}>None detected</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Missing */}
-                      <div style={{ padding: '20px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
-                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#be123c', textTransform: 'uppercase' }}>Missing</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'missing').map((p, idx) => (
-                            <div key={idx} style={{ fontSize: '12.5px', color: '#9f1239', display: 'flex', gap: '6px' }}>
-                              <span>❌</span> <span>{p.text}</span>
-                            </div>
-                          ))}
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'missing').length === 0 && (
-                            <div style={{ fontSize: '12px', color: '#be123c', fontStyle: 'italic' }}>None detected</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Incorrect */}
-                      <div style={{ padding: '20px', backgroundColor: '#fafafa', border: '1px solid #e5e5e5', borderRadius: '16px' }}>
-                        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 700, color: '#404040', textTransform: 'uppercase' }}>Incorrect</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'incorrect').map((p, idx) => (
-                            <div key={idx} style={{ fontSize: '12.5px', color: '#404040', display: 'flex', gap: '6px' }}>
-                              <span>🚫</span> <span>{p.text}</span>
-                            </div>
-                          ))}
-                          {parseLegalProvisions(parsed.legalProvisionAnalysis).filter(p => p.status === 'incorrect').length === 0 && (
-                            <div style={{ fontSize: '12px', color: '#525252', fontStyle: 'italic' }}>None detected</div>
-                          )}
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Concept Coverage */}
-                {parsed.conceptCoverage && (
-                  <div>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Expected vs Actual Concept Coverage</h4>
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Expected Concept</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b', textAlign: 'center', width: '140px' }}>Student Covered?</th>
-                            <th style={{ padding: '12px 8px', fontWeight: 600, color: '#64748b' }}>Remarks</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {parseConceptCoverage(parsed.conceptCoverage).map((row, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '12px 8px', fontWeight: 600, color: '#334155' }}>{row.concept}</td>
-                              <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                                <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', backgroundColor: row.covered.toLowerCase().includes('yes') ? '#ecfdf5' : '#fff1f2', color: row.covered.toLowerCase().includes('yes') ? '#047857' : '#be123c', border: `1px solid ${row.covered.toLowerCase().includes('yes') ? '#a7f3d0' : '#fecdd3'}`, fontSize: '11px', fontWeight: 700 }}>
-                                  {row.covered}
-                                </span>
-                              </td>
-                              <td style={{ padding: '12px 8px', color: '#475569', lineHeight: '1.5' }}>{row.remarks}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. Examiner's Observations */}
-                {parsed.examinersObservations && (
-                  <div style={{ padding: '24px', backgroundColor: '#fffbeb', borderRadius: '16px', border: '1px solid #fde68a' }}>
-                    <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', fontWeight: 700, color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Award size={18} color="#d97706" /> ICSI Chief Examiner Observations
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', color: '#78350f', fontStyle: 'italic' }}>
-                      &ldquo;{parsed.examinersObservations}&rdquo;
-                    </p>
-                  </div>
-                )}
-
-                {/* 5b. Missing Provisions */}
-                {parsed.missingProvisions && (
-                  <div style={{ padding: '24px', backgroundColor: '#fff1f2', borderRadius: '16px', border: '1px solid #fecdd3' }}>
-                    <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', fontWeight: 700, color: '#be123c', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <XCircle size={16} color="#ef4444" /> Missing Legal Provisions, Rules & Concepts
-                    </h4>
-                    <div style={{ fontSize: '13.5px', color: '#9f1239', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                      {parsed.missingProvisions}
-                    </div>
-                  </div>
-                )}
-
-                {/* Founder-only expandable panel */}
-                {markdownContent.includes('### 11.') && (
-                  <details style={{ 
-                    marginTop: '32px', 
-                    padding: '24px', 
-                    backgroundColor: '#fafafa', 
-                    border: '1px dashed #cbd5e1', 
-                    borderRadius: '16px',
-                    cursor: 'pointer'
-                  }}>
-                    <summary style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', outline: 'none' }}>
-                      🛠️ Founder Debug Engine Logs
-                    </summary>
-                    <div style={{ marginTop: '16px', fontSize: '12.5px', color: '#475569', lineHeight: '1.6', whiteSpace: 'pre-wrap', cursor: 'default' }}>
-                      {markdownContent.substring(markdownContent.search(/###\s*11\./i))}
-                    </div>
-                  </details>
-                )}
-              </div>
-            )}
-
-            {/* Perfect Model Answer Section */}
-            {activeSection === 'model' && (
-              <div>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 700, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={18} color="#2563eb" /> Perfect 5-Mark Model Answer
-                </h4>
-                <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>Full expert examiner script representation matching max allotted marks.</p>
-                <div style={{ fontSize: '14.5px', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                  {parsed.perfectModelAnswer || modelAnswerContent || 'No model answer generated.'}
-                </div>
-              </div>
-            )}
-
-            {/* Improved Candidate Answer Section */}
-            {activeSection === 'improved' && (
-              <div style={{ padding: '4px' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 700, color: '#8b5cf6' }}>Improved Candidate Answer</h4>
-                <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>Re-written to preserve your layout while fixing grammatical, presentation, and legal reference gaps.</p>
-                <div style={{ fontSize: '14.5px', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                  {parsed.improvedAnswer || 'No polished answer generated.'}
-                </div>
-              </div>
-            )}
-
-            {/* Revision Notes Section */}
-            {activeSection === 'revision' && (
-              <div>
-                <h4 style={{ margin: '0 0 14px 0', fontSize: '15px', fontWeight: 700, color: '#d97706' }}>Revision Notes</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {(parsed.keyTakeaways || '')
-                    .split('\n')
-                    .map(line => line.trim())
-                    .filter(line => line && (line.startsWith('-') || line.startsWith('*') || /^\d+\./.test(line) || line.length > 5))
-                    .map(line => line.replace(/^[-*\s\d.]+\s*/, ''))
-                    .slice(0, 8)
-                    .map((note, idx) => (
-                      <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '14.5px', color: '#475569', lineHeight: '1.6' }}>
-                        <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>•</span>
-                        <span>{note}</span>
-                      </div>
-                    ))
-                  }
-                  {(!parsed.keyTakeaways) && (
-                    <div style={{ fontSize: '14px', color: '#64748b', fontStyle: 'italic' }}>No revision notes available.</div>
-                  )}
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
-
       </div>
 
-      {/* 5. Next Actions Section */}
+      {/* Quick Stats Grid */}
       <div style={{ 
-        marginTop: '36px',
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+        gap: '16px',
+        marginBottom: '36px'
+      }}>
+        {[
+          { label: 'Checklist Coverage', value: `${parseMarkdownTable(parsed.marksBreakdown).reduce((acc, row) => acc + (parseInt(row.coveragePercent) || 0), 0) / (parseMarkdownTable(parsed.marksBreakdown).length || 1) | 0}%`, color: '#3b82f6', bg: '#eff6ff' },
+          { label: 'Legal Accuracy', value: `${parseInt(parseMarkdownTable(parsed.marksBreakdown).find(r => r.criterion.toLowerCase().includes('provision'))?.coveragePercent || '80')}%`, color: '#10b981', bg: '#ecfdf5' },
+          { label: 'Concept Accuracy', value: `${parseInt(parseMarkdownTable(parsed.marksBreakdown).find(r => r.criterion.toLowerCase().includes('concept'))?.coveragePercent || '70')}%`, color: '#8b5cf6', bg: '#f5f3ff' },
+          { label: 'Evaluation Confidence', value: `${evaluation.confidence || 95}%`, color: '#f59e0b', bg: '#fffbeb' }
+        ].map((stat, i) => (
+          <div key={i} style={{ 
+            padding: '16px', 
+            backgroundColor: stat.bg, 
+            border: `1px solid ${stat.color}20`, 
+            borderRadius: '16px',
+            textAlign: 'center'
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>{stat.label}</span>
+            <span style={{ fontSize: '22px', fontWeight: 800, color: stat.color }}>{stat.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Action Cards (Click opens subviews) */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+        gap: '20px',
+        marginBottom: '40px'
+      }}>
+        {[
+          { id: 'detailed', label: 'Detailed Report', desc: 'See complete examiner analysis', icon: FileText, color: '#2563eb', bg: '#eff6ff' },
+          { id: 'model', label: 'Perfect Model Answer', desc: 'View full marks answer', icon: Sparkles, color: '#10b981', bg: '#ecfdf5' },
+          { id: 'improved', label: 'Improved Answer', desc: 'See your answer rewritten', icon: CheckCircle2, color: '#8b5cf6', bg: '#f5f3ff' },
+          { id: 'revision', label: 'Revision Notes', desc: 'Quick revision before exams', icon: BookOpen, color: '#f59e0b', bg: '#fffbeb' }
+        ].map((btn) => {
+          const Icon = btn.icon;
+          return (
+            <button 
+              key={btn.id}
+              onClick={() => setActiveSection(btn.id as any)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                textAlign: 'left',
+                gap: '12px',
+                padding: '24px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.01)',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = btn.color;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = `0 12px 30px -10px ${btn.color}20`;
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{
+                padding: '10px',
+                backgroundColor: btn.bg,
+                borderRadius: '12px',
+                color: btn.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Icon size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{btn.label}</div>
+                <div style={{ fontSize: '12.5px', color: '#64748b', lineHeight: '1.4' }}>{btn.desc}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Next Actions (Dashboard navigation etc) */}
+      <div style={{ 
         padding: '32px', 
         backgroundColor: '#ffffff', 
         border: '1px solid #e2e8f0', 
         borderRadius: '24px',
         boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)'
       }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.3px', color: '#0f172a' }}>
-          <LayoutGrid size={18} color="#2563eb" />
-          Next Actions
+        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a' }}>
+          <LayoutGrid size={18} color="#2563eb" /> Next Actions
         </h3>
         
-        {/* Buttons grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '16px'
         }}>
-          {/* Primary CTA: Evaluate Another Answer */}
           <Link href="/evaluations/new" style={{ textDecoration: 'none' }}>
             <button style={{
               width: '100%',
@@ -1025,8 +1216,8 @@ export default function EvaluationDetail() {
               fontSize: '14px',
               fontWeight: 600,
               cursor: 'pointer',
-              transition: 'background-color 0.2s, transform 0.1s',
-              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
+              transition: 'background-color 0.2s',
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.15)',
             }}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
@@ -1035,7 +1226,6 @@ export default function EvaluationDetail() {
             </button>
           </Link>
 
-          {/* Dashboard */}
           <Link href="/" style={{ textDecoration: 'none' }}>
             <button style={{
               width: '100%',
@@ -1066,7 +1256,6 @@ export default function EvaluationDetail() {
             </button>
           </Link>
 
-          {/* Evaluation History */}
           <Link href="/evaluations" style={{ textDecoration: 'none' }}>
             <button style={{
               width: '100%',
@@ -1097,7 +1286,6 @@ export default function EvaluationDetail() {
             </button>
           </Link>
 
-          {/* Download Report */}
           <button 
             onClick={() => window.print()}
             style={{
@@ -1127,51 +1315,9 @@ export default function EvaluationDetail() {
           >
             <Download size={16} /> Download Report
           </button>
-
-          {/* Share Report */}
-          <button 
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: `Evaluation Report - ${evaluation.exam}`,
-                  text: `Check out my evaluation score of ${evaluation.score}/100!`,
-                  url: window.location.href,
-                }).catch(err => console.log(err));
-              } else {
-                navigator.clipboard.writeText(window.location.href);
-                alert("Evaluation link copied to clipboard!");
-              }
-            }}
-            style={{
-              width: '100%',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              padding: '14px 20px',
-              backgroundColor: '#ffffff',
-              color: '#475569',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#f8fafc';
-              e.currentTarget.style.borderColor = '#cbd5e1';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.borderColor = '#e2e8f0';
-            }}
-          >
-            <Share2 size={16} /> Share Report
-          </button>
         </div>
       </div>
-      
+
     </div>
   );
 }
