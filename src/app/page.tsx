@@ -1458,10 +1458,10 @@ function PublicLandingPage() {
               <span style={{ fontSize: '14px', color: '#64748b' }}>@XaminixAI</span>
             </a>
 
-            {/* Contact Email Card */}
+            {/* Founder Card */}
             <a 
-              href="mailto:support@xaminix.com" 
-              aria-label="Email Xaminix Support"
+              href="mailto:founder@xaminix.com" 
+              aria-label="Email Founder & Partnerships"
               style={{
                 textDecoration: 'none',
                 display: 'flex',
@@ -1489,8 +1489,43 @@ function PublicLandingPage() {
               }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Support Email</span>
-              <span style={{ fontSize: '14px', color: '#2563eb', fontWeight: 600 }}>support@xaminix.com</span>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Founder & Partnerships</span>
+              <span style={{ fontSize: '14px', color: '#2563eb', fontWeight: 600 }}>founder@xaminix.com</span>
+            </a>
+
+            {/* Support Card */}
+            <a 
+              href="mailto:hi@xaminix.com" 
+              aria-label="Email Support & General Enquiries"
+              style={{
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '24px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                transition: 'all 0.3s ease-in-out',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
+              }}
+              className="bento-card"
+            >
+              <div style={{ 
+                width: '48px', 
+                height: '48px', 
+                borderRadius: '12px', 
+                background: '#eff6ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#2563eb',
+                marginBottom: '16px'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              </div>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Support & General Enquiries</span>
+              <span style={{ fontSize: '14px', color: '#2563eb', fontWeight: 600 }}>hi@xaminix.com</span>
             </a>
           </div>
         </div>
@@ -1579,12 +1614,20 @@ function PublicLandingPage() {
                   @XaminixAI (Twitter)
                 </a>
                 <a 
-                  href="mailto:support@xaminix.com" 
+                  href="mailto:hi@xaminix.com" 
                   aria-label="Support Email Link"
                   style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
                   className="hover:text-blue-600 transition-colors"
                 >
-                  support@xaminix.com
+                  hi@xaminix.com (Support)
+                </a>
+                <a 
+                  href="mailto:founder@xaminix.com" 
+                  aria-label="Founder Email Link"
+                  style={{ fontSize: '14px', color: '#64748b', textDecoration: 'none' }} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  founder@xaminix.com (Business)
                 </a>
               </div>
             </div>

@@ -104,7 +104,7 @@ export default function HelpPage() {
         <Mail size={32} style={{ color: 'var(--accent-color)', marginBottom: '16px' }} />
         <h3 style={{ marginBottom: '8px' }}>Still need help?</h3>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Contact us for support and we&rsquo;ll get back to you as soon as possible.</p>
-        <a href="mailto:support@xaminix.com" className="btn" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+        <a href="mailto:hi@xaminix.com" className="btn" style={{ display: 'inline-flex', textDecoration: 'none' }}>
           <Mail size={16} />
           Contact Support
         </a>
