@@ -207,6 +207,7 @@ export default function EvaluationDetail() {
   const [evaluation, setEvaluation] = useState<EvaluationRecord | null>(null);
   const [activeSection, setActiveSection] = useState<'none' | 'detailed' | 'model' | 'improved' | 'revision'>('none');
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [expandedConcepts, setExpandedConcepts] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     async function loadDetail() {
@@ -638,6 +639,41 @@ export default function EvaluationDetail() {
   );
 
   if (activeSection === 'detailed') {
+    const getImpact = (item: LegalProvisionItem) => {
+      if (item.status === 'missing' || item.status === 'incorrect') return { text: 'Critical', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.08)' };
+      if (item.status === 'partial') return { text: 'Important', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)' };
+      return { text: 'Minor', color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)' };
+    };
+
+    const getOneLineExplanation = (item: LegalProvisionItem) => {
+      const cleanText = item.text.replace(/^[-*•\s]+/, '').trim();
+      if (cleanText.includes(':')) {
+        return cleanText.split(':')[1].trim();
+      }
+      if (item.status === 'correct') {
+        return `Cited correctly within the candidate answer.`;
+      }
+      if (item.status === 'partial') {
+        return `Provision cited but details or sub-clauses were incomplete.`;
+      }
+      return `Core provision was missing from the answer script.`;
+    };
+
+    const obsList = (parsed.examinersObservations || '')
+      .split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 10)
+      .slice(0, 5);
+
+    const improveTasks = (() => {
+      const items = (parsed.howToScoreFullMarks || '')
+        .split('\n')
+        .map(l => l.replace(/^[-*•\d.☐\s]+/, '').trim())
+        .filter(l => l.length > 10 && l.length < 90);
+      if (items.length > 0) return items.slice(0, 5);
+      return weaknessesList.map(w => `Mention ${w}`);
+    })();
+
     return (
       <div className="responsive-wrapper animate-fade-in" style={{ padding: '24px 0' }}>
         {renderBackButton()}
@@ -665,127 +701,193 @@ export default function EvaluationDetail() {
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                       <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Criterion</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Expected</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Covered</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Coverage %</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Awarded</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Examiner Remarks</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center', width: '130px' }}>Marks Awarded</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center', width: '130px' }}>Maximum Marks</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Reason</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {parseMarkdownTable(parsed.marksBreakdown).map((row, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b' }}>{row.criterion}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center', color: '#64748b' }}>{row.expected}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center', color: '#64748b' }}>{row.covered}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600 }}>{row.coveragePercent}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{(parseFloat(row.awardedMarks) / 20).toFixed(2)}</td>
-                        <td style={{ padding: '12px 16px', color: '#334155', lineHeight: '1.5' }}>{row.reason}</td>
-                      </tr>
-                    ))}
+                    {parseMarkdownTable(parsed.marksBreakdown).map((row, idx) => {
+                      const awarded = (parseFloat(row.awardedMarks) / 20).toFixed(2);
+                      const maxMarks = row.criterion.toLowerCase().includes('provision') ? '1.00' : row.criterion.toLowerCase().includes('concept') ? '2.00' : row.criterion.toLowerCase().includes('explanation') ? '1.00' : '0.50';
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b' }}>{row.criterion}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{awarded}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'center', color: '#64748b', fontWeight: 500 }}>{maxMarks}</td>
+                          <td style={{ padding: '12px 16px', color: '#334155', lineHeight: '1.5' }}>{row.reason}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* Legal Citation Table */}
+          {/* Legal Citation Table / Redesigned to Visual Cards */}
           <div style={{ marginBottom: '40px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Statutory & Legal Citations Table</h3>
-            <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Citation Reference</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', width: '140px' }}>Accuracy Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {legalProvisionsList.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 500, color: '#334155' }}>{item.text}</td>
-                      <td style={{ padding: '12px 16px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Statutory & Legal Citations Audit</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {legalProvisionsList.map((item, idx) => {
+                const impact = getImpact(item);
+                const explanation = getOneLineExplanation(item);
+                return (
+                  <div key={idx} style={{ 
+                    padding: '20px', 
+                    backgroundColor: '#ffffff', 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '16px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.01)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{item.text}</span>
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         <span style={{ 
-                          display: 'inline-flex', 
-                          padding: '3px 8px', 
+                          padding: '2px 8px', 
                           borderRadius: '12px', 
                           fontSize: '11px', 
                           fontWeight: 600,
                           backgroundColor: item.status === 'correct' ? '#ecfdf5' : item.status === 'partial' ? '#fffbeb' : '#fff1f2',
                           color: item.status === 'correct' ? '#047857' : item.status === 'partial' ? '#b45309' : '#e11d48'
                         }}>
-                          {item.status === 'correct' ? '✅ Correct' : item.status === 'partial' ? '⚠️ Partial' : '❌ Missing/Incorrect'}
+                          {item.status === 'correct' ? 'Correct' : item.status === 'partial' ? 'Partial' : 'Missing'}
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <span style={{ 
+                          padding: '2px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '11px', 
+                          fontWeight: 600,
+                          backgroundColor: impact.bg,
+                          color: impact.color
+                        }}>
+                          {impact.text}
+                        </span>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#475569', margin: 0, lineHeight: '1.4' }}>{explanation}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Concept Coverage Table */}
+          {/* Concept Coverage matrix / Redesigned to Checklist Cards */}
           {parsed.conceptCoverage && (
             <div style={{ marginBottom: '40px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Concept Coverage Matrix</h3>
-              <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Expected Syllabus Concept</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569', textAlign: 'center', width: '130px' }}>Coverage</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 600, color: '#475569' }}>Examiner Observations</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {parseConceptCoverage(parsed.conceptCoverage).map((row, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 600, color: '#334155' }}>{row.concept}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                          <span style={{ 
-                            padding: '3px 8px', 
-                            borderRadius: '12px', 
-                            fontSize: '11px', 
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Topic & Concept Coverage Matrix</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {parseConceptCoverage(parsed.conceptCoverage).map((row, idx) => {
+                  const isCovered = row.covered.toLowerCase().includes('yes');
+                  const isPartial = row.covered.toLowerCase().includes('partial') || row.covered.toLowerCase().includes('partially');
+                  
+                  const statusText = isCovered ? 'Covered' : isPartial ? 'Partial' : 'Missing';
+                  const statusColor = isCovered ? '#10b981' : isPartial ? '#f59e0b' : '#ef4444';
+                  const statusBg = isCovered ? '#ecfdf5' : isPartial ? '#fffbeb' : '#fff1f2';
+                  const icon = isCovered ? '✅' : isPartial ? '⚠️' : '❌';
+                  
+                  const isExpanded = !!expandedConcepts[idx];
+                  const oneSentenceRemarks = row.remarks.split(/[.!?]+/)[0] + '.';
+
+                  return (
+                    <div key={idx} style={{ 
+                      padding: '20px', 
+                      backgroundColor: '#ffffff', 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: '16px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.01)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '14.5px', fontWeight: 700, color: '#0f172a' }}>{row.concept}</span>
+                        <span style={{ 
+                          padding: '3px 10px', 
+                          borderRadius: '12px', 
+                          fontSize: '11px', 
+                          fontWeight: 700, 
+                          backgroundColor: statusBg, 
+                          color: statusColor,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <span>{icon}</span> {statusText}
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                        <button 
+                          onClick={() => setExpandedConcepts(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#2563eb',
+                            fontSize: '12.5px',
                             fontWeight: 600,
-                            backgroundColor: row.covered.toLowerCase().includes('yes') ? '#ecfdf5' : '#fff1f2',
-                            color: row.covered.toLowerCase().includes('yes') ? '#047857' : '#e11d48'
-                          }}>
-                            {row.covered}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px', color: '#475569', lineHeight: '1.5' }}>{row.remarks}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px'
+                          }}
+                        >
+                          Why? {isExpanded ? '▲' : '▼'}
+                        </button>
+                      </div>
+                      
+                      {isExpanded && (
+                        <p style={{ 
+                          fontSize: '13px', 
+                          color: '#475569', 
+                          margin: '8px 0 0 0', 
+                          lineHeight: '1.4',
+                          paddingTop: '8px',
+                          borderTop: '1px solid #f1f5f9'
+                        }}>
+                          {oneSentenceRemarks}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Observations and Missing Items */}
+          {/* Observations and How to Improve Checklist Side-by-Side */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '40px' }}>
-            {parsed.examinersObservations && (
-              <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '12px' }}>Examiner Observations</h4>
-                <p style={{ fontSize: '13.5px', color: '#475569', lineHeight: '1.6', fontStyle: 'italic' }}>&ldquo;{parsed.examinersObservations}&rdquo;</p>
+            <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Examiner Observations</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {obsList.map((obs, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13.5px', color: '#475569' }}>
+                    <span style={{ color: '#2563eb', fontWeight: 'bold' }}>•</span>
+                    <span style={{ fontWeight: 500 }}>{obs}.</span>
+                  </div>
+                ))}
+                {obsList.length === 0 && (
+                  <p style={{ fontSize: '13.5px', color: '#64748b', fontStyle: 'italic', margin: 0 }}>No critical observations recorded.</p>
+                )}
               </div>
-            )}
-            
-            {parsed.missingProvisions && (
-              <div style={{ padding: '24px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '16px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#be123c', marginBottom: '12px' }}>Gaps & Missing References</h4>
-                <div style={{ fontSize: '13.5px', color: '#9f1239', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{parsed.missingProvisions}</div>
-              </div>
-            )}
-          </div>
-
-          {/* Recommendations / How to score full marks */}
-          {parsed.howToScoreFullMarks && (
-            <div style={{ padding: '24px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '16px' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#1e40af', marginBottom: '12px' }}>Strategic Recommendations</h4>
-              <div style={{ fontSize: '14px', color: '#1e3a8a', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{parsed.howToScoreFullMarks}</div>
             </div>
-          )}
+            
+            <div style={{ padding: '24px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '16px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#1e40af', marginBottom: '16px' }}>How to Improve</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {improveTasks.map((task, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '13.5px', color: '#1e3a8a' }}>
+                    <span style={{ fontSize: '16px', color: '#3b82f6', userSelect: 'none' }}>☐</span>
+                    <span style={{ fontWeight: 500 }}>{task}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
         </div>
       </div>
