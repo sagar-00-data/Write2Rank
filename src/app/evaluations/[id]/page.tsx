@@ -199,6 +199,240 @@ function limitToWordCount(text: string, targetWords: number): string {
 import FeedbackModal from '@/components/FeedbackModal';
 import { trackAnalyticsEvent } from '@/lib/analytics';
 
+interface LegalProvisionItem {
+  status: 'correct' | 'partial' | 'missing' | 'incorrect';
+  text: string;
+}
+
+// 1. OverallPerformanceCard
+function OverallPerformanceCard({
+  score,
+  starRatingText,
+  confidence,
+  verdict,
+  impression,
+  cleanSummary
+}: {
+  score: number;
+  starRatingText: string;
+  confidence: number;
+  verdict: { text: string; color: string; bg: string };
+  impression: string;
+  cleanSummary: string;
+}) {
+  return (
+    <div style={{ 
+      padding: '32px', 
+      backgroundColor: '#ffffff', 
+      border: '1px solid #e2e8f0', 
+      borderRadius: '24px',
+      boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
+      marginBottom: '36px'
+    }}>
+      <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Sparkles size={20} color="#2563eb" /> Executive Verdict
+      </h3>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Overall Marks</span>
+          <span style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>
+            {(score / 20).toFixed(1)} / 5
+          </span>
+        </div>
+        <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Star Rating</span>
+          <span style={{ fontSize: '20px', color: '#f59e0b', letterSpacing: '1px', fontWeight: 'bold' }}>
+            {starRatingText}
+          </span>
+        </div>
+        <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Confidence</span>
+          <span style={{ fontSize: '26px', fontWeight: 800, color: '#10b981' }}>
+            {confidence}%
+          </span>
+        </div>
+        <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Verdict Badge</span>
+          <span style={{ 
+            display: 'inline-flex',
+            padding: '4px 12px',
+            borderRadius: '9999px',
+            fontSize: '13px',
+            fontWeight: 700,
+            color: verdict.color,
+            backgroundColor: verdict.bg,
+            border: `1px solid ${verdict.color}20`
+          }}>{verdict.text}</span>
+        </div>
+      </div>
+
+      <div style={{ 
+        padding: '16px 20px', 
+        backgroundColor: 'rgba(37, 99, 235, 0.03)', 
+        borderLeft: '4px solid #2563eb', 
+        borderRadius: '4px 16px 16px 4px', 
+        marginBottom: '20px' 
+      }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Examiner Impression</span>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', fontStyle: 'italic', margin: 0 }}>
+          &ldquo;{impression}&rdquo;
+        </p>
+      </div>
+
+      <p style={{ fontSize: '15px', lineHeight: '1.7', color: '#334155', margin: 0, fontWeight: 500 }}>
+        {cleanSummary || 'Evaluation report compiled successfully.'}
+      </p>
+    </div>
+  );
+}
+
+// 2. StrengthsCard
+function StrengthsCard({ strengthsList }: { strengthsList: string[] }) {
+  return (
+    <div style={{ padding: '24px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '24px' }}>
+      <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        ✅ Key Strengths
+      </h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {strengthsList.map((str, idx) => (
+          <div key={idx} style={{ fontSize: '13.5px', color: '#14532d', fontWeight: 500, display: 'flex', gap: '6px', lineHeight: '1.5' }}>
+            <span>✅</span> <span>{str}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 3. ImprovementCard
+function ImprovementCard({ weaknessesList }: { weaknessesList: string[] }) {
+  return (
+    <div style={{ padding: '24px', backgroundColor: '#fffbe9', border: '1px solid #fef08a', borderRadius: '24px' }}>
+      <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#854d0e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        ⚠️ Areas for Improvement
+      </h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {weaknessesList.map((weak, idx) => (
+          <div key={idx} style={{ fontSize: '13.5px', color: '#713f12', fontWeight: 500, display: 'flex', gap: '6px', lineHeight: '1.5' }}>
+            <span>⚠️</span> <span>{weak}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 4. LegalCitationGrid
+function LegalCitationGrid({
+  sectionsList,
+  rulesList,
+  formsList,
+  caseLawsList
+}: {
+  sectionsList: LegalProvisionItem[];
+  rulesList: LegalProvisionItem[];
+  formsList: LegalProvisionItem[];
+  caseLawsList: LegalProvisionItem[];
+}) {
+  return (
+    <div style={{ 
+      padding: '32px', 
+      backgroundColor: '#ffffff', 
+      border: '1px solid #e2e8f0', 
+      borderRadius: '24px',
+      boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
+      marginBottom: '36px' 
+    }}>
+      <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 24px 0', display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
+        <BookOpen size={20} color="#8b5cf6" /> Legal Accuracy
+      </h3>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+        <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+          <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Sections</h5>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {sectionsList.map((item, idx) => (
+              <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+          <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Rules</h5>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {rulesList.map((item, idx) => (
+              <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+          <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Forms</h5>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {formsList.map((item, idx) => (
+              <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+          <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Case Laws</h5>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {caseLawsList.map((item, idx) => (
+              <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 5. BiggestDeductionsCard
+function BiggestDeductionsCard({ deductions }: { deductions: { reason: string; score: string }[] }) {
+  return (
+    <div style={{ 
+      padding: '24px', 
+      backgroundColor: '#ffffff', 
+      border: '1px solid #e2e8f0', 
+      borderRadius: '24px',
+      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.02)',
+      marginBottom: '36px'
+    }}>
+      <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', marginBottom: '16px' }}>Biggest Deductions</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+        {deductions.map((d, i) => (
+          <div key={i} style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            backgroundColor: '#fff1f2',
+            border: '1px solid #fecdd3',
+            borderRadius: '16px'
+          }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#9f1239' }}>{d.reason}</span>
+            <span style={{ fontSize: '13px', fontWeight: 800, color: '#e11d48' }}>{d.score}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function EvaluationDetail() {
   const params = useParams();
   const router = useRouter();
@@ -1054,201 +1288,32 @@ export default function EvaluationDetail() {
       {/* Untouched Dashboard Section (Gauge, Parameters, Pillars) */}
       {renderDashboardBlock()}
 
-      {/* Executive Summary & Verdict Section */}
-      <div style={{ 
-        padding: '32px', 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '24px',
-        boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
-        marginBottom: '36px'
-      }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Sparkles size={20} color="#2563eb" /> Executive Verdict
-        </h3>
+      {/* Overall Performance Card */}
+      <OverallPerformanceCard
+        score={evaluation.score}
+        starRatingText={starRatingText}
+        confidence={evaluation.confidence || 95}
+        verdict={getVerdictBadge()}
+        impression={getImpression()}
+        cleanSummary={cleanSummary}
+      />
 
-        {/* Verdict Stats Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Overall Marks</span>
-            <span style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>
-              {(evaluation.score / 20).toFixed(1)} / 5
-            </span>
-          </div>
-          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Star Rating</span>
-            <span style={{ fontSize: '20px', color: '#f59e0b', letterSpacing: '1px', fontWeight: 'bold' }}>
-              {starRatingText}
-            </span>
-          </div>
-          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Confidence</span>
-            <span style={{ fontSize: '26px', fontWeight: 800, color: '#10b981' }}>
-              {evaluation.confidence || 95}%
-            </span>
-          </div>
-          <div style={{ padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Verdict Badge</span>
-            <span style={{ 
-              display: 'inline-flex',
-              padding: '4px 12px',
-              borderRadius: '9999px',
-              fontSize: '13px',
-              fontWeight: 700,
-              color: getVerdictBadge().color,
-              backgroundColor: getVerdictBadge().bg,
-              border: `1px solid ${getVerdictBadge().color}20`
-            }}>{getVerdictBadge().text}</span>
-          </div>
-        </div>
-
-        {/* Examiner Impression */}
-        <div style={{ 
-          padding: '16px 20px', 
-          backgroundColor: 'rgba(37, 99, 235, 0.03)', 
-          borderLeft: '4px solid #2563eb', 
-          borderRadius: '4px 16px 16px 4px', 
-          marginBottom: '20px' 
-        }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Examiner Impression</span>
-          <p style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', fontStyle: 'italic', margin: 0 }}>
-            &ldquo;{getImpression()}&rdquo;
-          </p>
-        </div>
-
-        {/* Short summary block */}
-        <p style={{ fontSize: '15px', lineHeight: '1.7', color: '#334155', margin: 0, fontWeight: 500 }}>
-          {cleanSummary || 'Evaluation report compiled successfully.'}
-        </p>
-      </div>
-
-      {/* Strengths & Improvements Double Card */}
+      {/* Strengths & Improvements Card Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '36px' }}>
-        {/* Strengths */}
-        <div style={{ padding: '24px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '24px' }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            ✅ Key Strengths
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {strengthsList.map((str, idx) => (
-              <div key={idx} style={{ fontSize: '13.5px', color: '#14532d', fontWeight: 500, display: 'flex', gap: '6px', lineHeight: '1.5' }}>
-                <span>✅</span> <span>{str}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Improvement */}
-        <div style={{ padding: '24px', backgroundColor: '#fffbe9', border: '1px solid #fef08a', borderRadius: '24px' }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: 700, color: '#854d0e', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            ⚠️ Areas for Improvement
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {weaknessesList.map((weak, idx) => (
-              <div key={idx} style={{ fontSize: '13.5px', color: '#713f12', fontWeight: 500, display: 'flex', gap: '6px', lineHeight: '1.5' }}>
-                <span>⚠️</span> <span>{weak}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <StrengthsCard strengthsList={strengthsList} />
+        <ImprovementCard weaknessesList={weaknessesList} />
       </div>
 
-      {/* Legal Citation Check */}
-      <div style={{ 
-        padding: '32px', 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '24px',
-        boxShadow: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
-        marginBottom: '36px' 
-      }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 24px 0', display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
-          <BookOpen size={20} color="#8b5cf6" /> Legal Accuracy
-        </h3>
-        
-        {/* Redesigned 4 Citation Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-          {/* Card 1: Sections */}
-          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
-            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Sections</h5>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {sectionsList.map((item, idx) => (
-                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
-                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
-                  <span>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Legal Citation Grid */}
+      <LegalCitationGrid
+        sectionsList={sectionsList}
+        rulesList={rulesList}
+        formsList={formsList}
+        caseLawsList={caseLawsList}
+      />
 
-          {/* Card 2: Rules */}
-          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
-            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Rules</h5>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {rulesList.map((item, idx) => (
-                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
-                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
-                  <span>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 3: Forms */}
-          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
-            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Forms</h5>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {formsList.map((item, idx) => (
-                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
-                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
-                  <span>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 4: Case Laws */}
-          <div style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
-            <h5 style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' }}>Case Laws</h5>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {caseLawsList.map((item, idx) => (
-                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
-                  <span>{item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}</span>
-                  <span>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Biggest Deductions */}
-      <div style={{ 
-        padding: '24px', 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '24px',
-        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.02)',
-        marginBottom: '36px'
-      }}>
-        <h4 style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', marginBottom: '16px' }}>Biggest Deductions</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-          {deductions.map((d, i) => (
-            <div key={i} style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              backgroundColor: '#fff1f2',
-              border: '1px solid #fecdd3',
-              borderRadius: '16px'
-            }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#9f1239' }}>{d.reason}</span>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: '#e11d48' }}>{d.score}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Biggest Deductions Card */}
+      <BiggestDeductionsCard deductions={deductions} />
 
       {/* Quick Stats Grid */}
       <div style={{ 
