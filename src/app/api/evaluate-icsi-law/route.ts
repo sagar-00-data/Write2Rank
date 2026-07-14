@@ -295,6 +295,31 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
       : scoreProvisions + scoreAnalysis + scoreConclusion + scoreFormatting;
     totalScore = Math.max(0, Math.min(100, isNaN(totalScore) ? 0 : totalScore));
 
+    const getSection = (headerName: string, nextHeaderRegex: RegExp): string => {
+      const idx = cleanMarkdown.search(new RegExp(`###\\s*\\d+\\.\\s*${headerName}`, 'i'));
+      if (idx === -1) return '';
+      const match = cleanMarkdown.match(new RegExp(`###\\s*\\d+\\.\\s*${headerName}`, 'i'));
+      const contentStart = idx + (match ? match[0].length : 0);
+      const remaining = cleanMarkdown.substring(contentStart);
+      const nextIdx = remaining.search(nextHeaderRegex);
+      if (nextIdx === -1) return remaining.trim();
+      return remaining.substring(0, nextIdx).trim();
+    };
+
+    const parsedSections = {
+      overallPerformance: getSection('OVERALL PERFORMANCE', /###\s*\d+\.\s*MARKS BREAKDOWN/i),
+      marksBreakdown: getSection('MARKS BREAKDOWN', /###\s*\d+\.\s*LEGAL PROVISION ANALYSIS/i),
+      legalProvisionAnalysis: getSection('LEGAL PROVISION ANALYSIS', /###\s*\d+\.\s*CONCEPT COVERAGE/i),
+      conceptCoverage: getSection('CONCEPT COVERAGE', /###\s*\d+\.\s*EXAMINER/i),
+      examinersObservations: getSection('EXAMINER', /###\s*\d+\.\s*(?:MISSING LEGAL PROVISIONS|HOW TO SCORE|HOW TO IMPROVE)/i),
+      missingProvisions: getSection('(?:MISSING LEGAL PROVISIONS|MISSING RULES)', /###\s*\d+\.\s*(?:HOW TO SCORE|HOW TO IMPROVE)/i),
+      howToScoreFullMarks: getSection('(?:HOW TO SCORE|HOW TO IMPROVE)', /###\s*\d+\.\s*(?:COMMON MISTAKES|IMPROVED CANDIDATE ANSWER|IMPROVED STUDENT ANSWER|IMPROVED ANSWER)/i),
+      commonMistakes: getSection('COMMON MISTAKES', /###\s*\d+\.\s*(?:IMPROVED CANDIDATE ANSWER|IMPROVED STUDENT ANSWER|IMPROVED ANSWER)/i),
+      improvedAnswer: getSection('(?:IMPROVED CANDIDATE ANSWER|IMPROVED STUDENT ANSWER|IMPROVED ANSWER)', /###\s*\d+\.\s*(?:PERFECT MODEL ANSWER|PERFECT 5-MARK MODEL ANSWER)/i),
+      perfectModelAnswer: getSection('(?:PERFECT MODEL ANSWER|PERFECT 5-MARK MODEL ANSWER)', /###\s*\d+\.\s*(?:KEY TAKEAWAYS|KEY REVISION POINTS|REVISION NOTES)/i),
+      keyTakeaways: getSection('(?:KEY TAKEAWAYS|KEY REVISION POINTS|REVISION NOTES)', /$/i),
+    };
+
     const aiFeedbackObj = {
       markdown: cleanMarkdown,
       breakdown: [
@@ -304,6 +329,7 @@ ${results[0].text.replace(/---METRICS_START---[\s\S]*?---METRICS_END---/, '').tr
         { q: 'Secretarial Formatting', topic: 'Professional Structure',   awarded: scoreFormatting, max: 15, comments: 'Provisions -> Analysis -> Conclusion formatting' },
       ],
       crag_attempts: ragResult.attempts,
+      parsedSections,
     };
 
     // Step 3 — INSERT into Supabase (fully awaited BEFORE response is sent)
