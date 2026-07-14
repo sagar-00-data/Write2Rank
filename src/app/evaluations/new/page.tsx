@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowRight, Loader, Edit3, HelpCircle, Sparkles, Wand2,
   Info, BookOpen, Plus
@@ -137,6 +137,12 @@ export default function NewEvaluation() {
 
   const router = useRouter();
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (!isStreaming && finalEvalId) {
+      router.push(`/evaluations/${finalEvalId}`);
+    }
+  }, [isStreaming, finalEvalId, router]);
 
   // ── OCR: sequential per-page, merge ────────────────────────────────────────
 
